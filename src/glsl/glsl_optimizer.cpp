@@ -382,7 +382,7 @@ glslopt_shader* glslopt_optimize (glslopt_ctx* ctx, glslopt_shader_type type, co
 	}
 	
 	// Do optimization post-link
-	if (!state->error && !ir->is_empty())
+	if ( false && !state->error && !ir->is_empty())
 	{		
 		const bool linked = !(options & kGlslOptionNotFullShader);
 		do_optimization_passes(ir, linked, state, ctx);
