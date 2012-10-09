@@ -105,10 +105,6 @@ extern GLfloat _mesa_ubyte_to_float_color_tab[256];
 /* a close approximation: */
 #define FLOAT_TO_INT(X)     ( (GLint) (2147483647.0 * (X)) )
 
-/** Convert GLfloat in [-1.0,1.0] to GLint64 in [-(1<<63),(1 << 63) -1] */
-#define FLOAT_TO_INT64(X)     ( (GLint64) (9223372036854775807.0 * (double)(X)) )
-
-
 /** Convert GLint in [-2147483648,2147483647] to GLfloat in [-1.0,1.0], texture/fb data */
 #define INT_TO_FLOAT_TEX(I)    ((I) == -2147483648 ? -1.0F : (I) * (1.0F/2147483647.0))
 
@@ -693,31 +689,14 @@ NORMALIZE_3FV(GLfloat v[3])
 static inline GLboolean
 IS_NEGATIVE(float x)
 {
-#if defined(USE_IEEE)
-   fi_type fi;
-   fi.f = x;
-   return fi.i < 0;
-#else
-   return x < 0.0F;
-#endif
+   return signbit(x) != 0;
 }
-
 
 /** Test two floats have opposite signs */
 static inline GLboolean
 DIFFERENT_SIGNS(GLfloat x, GLfloat y)
 {
-#if defined(USE_IEEE)
-   fi_type xfi, yfi;
-   xfi.f = x;
-   yfi.f = y;
-   return !!((xfi.i ^ yfi.i) & (1u << 31));
-#else
-   /* Could just use (x*y<0) except for the flatshading requirements.
-    * Maybe there's a better way?
-    */
-   return ((x) * (y) <= 0.0F && (x) - (y) != 0.0F);
-#endif
+   return signbit(x) != signbit(y);
 }
 
 

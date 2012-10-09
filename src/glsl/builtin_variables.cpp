@@ -25,10 +25,23 @@
 #include "glsl_parser_extras.h"
 #include "glsl_symbol_table.h"
 #include "main/core.h"
-#include "main/uniforms.h"
 #include "program/prog_parameter.h"
 #include "program/prog_statevars.h"
 #include "program/prog_instruction.h"
+
+struct gl_builtin_uniform_element {
+	const char *field;
+	int tokens[STATE_LENGTH];
+	int swizzle;
+};
+
+struct gl_builtin_uniform_desc {
+	const char *name;
+	struct gl_builtin_uniform_element *elements;
+	unsigned int num_elements;
+};
+
+
 
 static void generate_ARB_draw_buffers_variables(exec_list *,
 						struct _mesa_glsl_parse_state *,
@@ -329,7 +342,7 @@ static struct gl_builtin_uniform_element gl_NormalMatrix_elements[] = {
 
 #define STATEVAR(name) {#name, name ## _elements, Elements(name ## _elements)}
 
-const struct gl_builtin_uniform_desc _mesa_builtin_uniform_desc[] = {
+static const struct gl_builtin_uniform_desc _mesa_builtin_uniform_desc[] = {
    STATEVAR(gl_DepthRange),
    STATEVAR(gl_ClipPlane),
    STATEVAR(gl_Point),

@@ -144,6 +144,13 @@ static inline int isblank(int ch) { return ch == ' ' || ch == '\t'; }
 /*@}*/
 
 
+/*
+ * signbit() is a macro on Linux.  Not available on Windows.
+ */
+#ifndef signbit
+#define signbit(x) ((x) < 0.0f)
+#endif
+
 
 /** single-precision inverse square root */
 static inline float
@@ -252,14 +259,6 @@ static inline int IROUND(float f)
    return (int) ((f >= 0.0F) ? (f + 0.5F) : (f - 0.5F));
 }
 
-
-/**
- * Convert float to int64 by rounding to nearest integer.
- */
-static inline GLint64 IROUND64(float f)
-{
-   return (GLint64) ((f >= 0.0F) ? (f + 0.5F) : (f - 0.5F));
-}
 
 
 /**
@@ -519,12 +518,28 @@ extern unsigned int
 _mesa_bitcount_64(uint64_t n);
 #endif
 
+/**
+ * Find the last (most significant) bit set in a word.
+ *
+ * Essentially ffs() in the reverse direction.
+ */
+static inline unsigned int
+_mesa_fls(unsigned int n)
+{
+#if defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) >= 304)
+   return n == 0 ? 0 : 32 - __builtin_clz(n);
+#else
+   unsigned int v = 1;
 
-extern GLhalfARB
-_mesa_float_to_half(float f);
+   if (n == 0)
+      return 0;
 
-extern float
-_mesa_half_to_float(GLhalfARB h);
+   while (n >>= 1)
+       v++;
+
+   return v;
+#endif
+}
 
 
 extern void *
