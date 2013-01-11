@@ -56,73 +56,6 @@ static PFNGLGETOBJECTPARAMETERIVARBPROC glGetObjectParameterivARB;
 #endif
 
 
-static bool InitializeOpenGL ()
-{
-	bool hasGLSL = false;
-
-#if GOT_GFX
-
-#ifdef _MSC_VER
-	// setup minimal required GL
-	HWND wnd = CreateWindowA(
-		"STATIC",
-		"GL",
-		WS_OVERLAPPEDWINDOW | WS_CLIPSIBLINGS |	WS_CLIPCHILDREN,
-		0, 0, 16, 16,
-		NULL, NULL,
-		GetModuleHandle(NULL), NULL );
-	HDC dc = GetDC( wnd );
-
-	PIXELFORMATDESCRIPTOR pfd = {
-		sizeof(PIXELFORMATDESCRIPTOR), 1,
-		PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL,
-		PFD_TYPE_RGBA, 32,
-		0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0,
-		16, 0,
-		0, PFD_MAIN_PLANE, 0, 0, 0, 0
-	};
-
-	int fmt = ChoosePixelFormat( dc, &pfd );
-	SetPixelFormat( dc, fmt, &pfd );
-
-	HGLRC rc = wglCreateContext( dc );
-	wglMakeCurrent( dc, rc );
-
-#else
-	GLint attributes[16];
-	int i = 0;
-	attributes[i++]=AGL_RGBA;
-	attributes[i++]=AGL_PIXEL_SIZE;
-	attributes[i++]=32;
-	attributes[i++]=AGL_NO_RECOVERY;
-	attributes[i++]=AGL_NONE;
-	
-	AGLPixelFormat pixelFormat = aglChoosePixelFormat(NULL,0,attributes);
-	AGLContext agl = aglCreateContext(pixelFormat, NULL);
-	aglSetCurrentContext (agl);
-
-#endif
-
-	// check if we have GLSL
-	const char* extensions = (const char*)glGetString(GL_EXTENSIONS);
-	hasGLSL = strstr(extensions, "GL_ARB_shader_objects") && strstr(extensions, "GL_ARB_vertex_shader") && strstr(extensions, "GL_ARB_fragment_shader");
-	
-#ifdef _MSC_VER
-	if (hasGLSL)
-	{
-		glDeleteObjectARB = (PFNGLDELETEOBJECTARBPROC)wglGetProcAddress("glDeleteObjectARB");
-		glCreateShaderObjectARB = (PFNGLCREATESHADEROBJECTARBPROC)wglGetProcAddress("glCreateShaderObjectARB");
-		glShaderSourceARB = (PFNGLSHADERSOURCEARBPROC)wglGetProcAddress("glShaderSourceARB");
-		glCompileShaderARB = (PFNGLCOMPILESHADERARBPROC)wglGetProcAddress("glCompileShaderARB");
-		glGetInfoLogARB = (PFNGLGETINFOLOGARBPROC)wglGetProcAddress("glGetInfoLogARB");
-		glGetObjectParameterivARB = (PFNGLGETOBJECTPARAMETERIVARBPROC)wglGetProcAddress("glGetObjectParameterivARB");
-	}
-#endif
-
-#endif
-	return hasGLSL;
-}
 
 static void replace_string (std::string& target, const std::string& search, const std::string& replace, size_t startPos)
 {
@@ -136,57 +69,6 @@ static void replace_string (std::string& target, const std::string& search, cons
 		p += replace.size ();
 	}
 }
-
-static bool CheckGLSL (bool vertex, bool gles, const std::string& testName, const char* prefix, const std::string& source)
-{
-	#if !GOT_GFX
-	return true; // just assume it's ok
-	#endif
-
-	#if !GOT_MORE_THAN_GLSL_120
-	if (source.find("#version 140") != std::string::npos)
-		return true;
-	#endif
-	
-	std::string src;
-	if (gles)
-	{
-		src += "#define lowp\n";
-		src += "#define mediump\n";
-		src += "#define highp\n";
-		src += "#define texture2DLodEXT texture2DLod\n";
-		src += "#define texture2DProjLodEXT texture2DProjLod\n";
-		src += "float shadow2DEXT (sampler2DShadow s, vec3 p) { return shadow2D(s,p).r; }\n";
-		src += "float shadow2DProjEXT (sampler2DShadow s, vec4 p) { return shadow2DProj(s,p).r; }\n";
-	}
-	src += source;
-	if (gles)
-	{
-		replace_string (src, "GL_EXT_shader_texture_lod", "GL_ARB_shader_texture_lod", 0);
-		replace_string (src, "#extension GL_OES_standard_derivatives : require", "", 0);
-		replace_string (src, "#extension GL_EXT_shadow_samplers : require", "", 0);
-	}
-	const char* sourcePtr = src.c_str();
-
-	
-	GLhandleARB shader = glCreateShaderObjectARB (vertex ? GL_VERTEX_SHADER_ARB : GL_FRAGMENT_SHADER_ARB);
-	glShaderSourceARB (shader, 1, &sourcePtr, NULL);
-	glCompileShaderARB (shader);
-	GLint status;
-	glGetObjectParameterivARB (shader, GL_OBJECT_COMPILE_STATUS_ARB, &status);
-	bool res = true;
-	if (status == 0)
-	{
-		char log[4096];
-		GLsizei logLength;
-		glGetInfoLogARB (shader, sizeof(log), &logLength, log);
-		printf ("\n  %s: real glsl compiler error on %s:\n%s\n", testName.c_str(), prefix, log);
-		res = false;
-	}
-	glDeleteObjectARB (shader);
-	return res;
-}
-
 
 static bool ReadStringFromFile (const char* pathName, std::string& output)
 {
@@ -290,8 +172,7 @@ static bool TestFile (glslopt_ctx* ctx, bool vertex,
 	const std::string& inputPath,
 	const std::string& hirPath,
 	const std::string& outputPath,
-	bool gles,
-	bool doCheckGLSL)
+	bool gles )
 {
 	std::string input;
 	if (!ReadStringFromFile (inputPath.c_str(), input))
@@ -299,12 +180,6 @@ static bool TestFile (glslopt_ctx* ctx, bool vertex,
 		printf ("\n  %s: failed to read input file\n", testName.c_str());
 		return false;
 	}
-	if (doCheckGLSL)
-	{
-		if (!CheckGLSL (vertex, gles, testName, "input", input.c_str()))
-			return false;
-	}
-
 	if (gles)
 	{
 		if (vertex)
@@ -361,10 +236,6 @@ static bool TestFile (glslopt_ctx* ctx, bool vertex,
 			printf ("\n  %s: does not match optimized output\n", testName.c_str());
 			res = false;
 		}
-		if (res && doCheckGLSL && !CheckGLSL (vertex, gles, testName, "raw", textHir.c_str()))
-			res = false;
-		if (res && doCheckGLSL && !CheckGLSL (vertex, gles, testName, "optimized", textOpt.c_str()))
-			res = false;
 	}
 	else
 	{
@@ -386,7 +257,6 @@ int main (int argc, const char** argv)
 		return 1;
 	}
 
-	bool hasOpenGL = InitializeOpenGL ();
 	glslopt_ctx* ctx[2] = {
 		glslopt_initialize(true),
 		glslopt_initialize(false),
@@ -420,7 +290,7 @@ int main (int argc, const char** argv)
 				//	continue;
 				std::string hirname = inname.substr (0,inname.size()-strlen(kApiIn[api])) + kApiIR[api];
 				std::string outname = inname.substr (0,inname.size()-strlen(kApiIn[api])) + kApiOut[api];
-				bool ok = TestFile (ctx[api], type==0, inname, testFolder + "/" + inname, testFolder + "/" + hirname, testFolder + "/" + outname, api==0, hasOpenGL);
+				bool ok = TestFile (ctx[api], type==0, inname, testFolder + "/" + inname, testFolder + "/" + hirname, testFolder + "/" + outname, api==0 );
 				if (!ok)
 				{
 					++errors;
