@@ -1,0 +1,13 @@
+#version 120
+varying vec4 col;
+uniform float rglAlphaRef;
+void main ()
+{
+  vec4 tmpvar_1;
+  tmpvar_1 = col;
+  gl_FragColor = tmpvar_1;
+  if (!((gl_FragColor.w >= rglAlphaRef))) {
+    discard;
+  };
+}
+

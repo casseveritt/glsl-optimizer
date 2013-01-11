@@ -3,6 +3,7 @@ out vec4 col;
 in vec4 icol;
 in vec4 position;
 uniform vec2 p;
+uniform float rglAlphaRef;
 void main ()
 {
   vec4 tmpvar_1;
@@ -14,5 +15,8 @@ void main ()
   vec4 tmpvar_3;
   tmpvar_3 = (tmpvar_2 + position);
   gl_Position = tmpvar_3;
+  if (!((col.w >= rglAlphaRef))) {
+    discard;
+  };
 }
 
