@@ -11,6 +11,7 @@
 		2B47D9BA1209C71700937F2C /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B47D9B91209C71700937F2C /* OpenGL.framework */; };
 		2B47D9C01209C72100937F2C /* AGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B47D9BF1209C72100937F2C /* AGL.framework */; };
 		2B62803D13A15D7D00B735C2 /* libmesaglsl2.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 2B62800E13A15CE100B735C2 /* libmesaglsl2.a */; };
+		433FEC4116A20126009B662B /* regal_glsl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 433FEC3F16A20125009B662B /* regal_glsl.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -54,6 +55,8 @@
 		2B47D9B91209C71700937F2C /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
 		2B47D9BF1209C72100937F2C /* AGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AGL.framework; path = System/Library/Frameworks/AGL.framework; sourceTree = SDKROOT; };
 		2B47D9C51209C72F00937F2C /* mesaglsl2.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; name = mesaglsl2.xcodeproj; path = ../src/glsl/xcode/mesaglsl2.xcodeproj; sourceTree = SOURCE_ROOT; };
+		433FEC3F16A20125009B662B /* regal_glsl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = regal_glsl.cpp; path = ../regal/regal_glsl.cpp; sourceTree = "<group>"; };
+		433FEC4016A20126009B662B /* regal_glsl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = regal_glsl.h; path = ../regal/regal_glsl.h; sourceTree = "<group>"; };
 		8DD76FB20486AB0100D96B5E /* regal_glsl_test */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = regal_glsl_test; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -86,6 +89,8 @@
 		08FB7795FE84155DC02AAC07 /* Source */ = {
 			isa = PBXGroup;
 			children = (
+				433FEC3F16A20125009B662B /* regal_glsl.cpp */,
+				433FEC4016A20126009B662B /* regal_glsl.h */,
 				2B47D9AA1209C6AC00937F2C /* regal_glsl_tests.cpp */,
 			);
 			name = Source;
@@ -186,6 +191,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				2B47D9AB1209C6AC00937F2C /* regal_glsl_tests.cpp in Sources */,
+				433FEC4116A20126009B662B /* regal_glsl.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -235,6 +241,11 @@
 				GCC_VERSION = "";
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					../src/glsl,
+					../src,
+					../src/mesa,
+				);
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = "";
 			};
@@ -252,6 +263,11 @@
 				GCC_WARN_SHADOW = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					../src/glsl,
+					../src,
+					../src/mesa,
+				);
 				SDKROOT = "";
 			};
 			name = Release;
