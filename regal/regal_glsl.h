@@ -25,17 +25,17 @@ struct regal_glsl_shader;
 struct regal_glsl_ctx;
 
 enum regal_glsl_shader_type {
-	kGlslOptShaderVertex = 0,
-	kGlslOptShaderFragment,
+	kRegalGlslShaderVertex = 0,
+	kRegalGlslShaderFragment,
 };
 
-// Options flags for glsl_optimize
+// Options flags for regal_glsl_optimize
 enum regal_glsl_options {
-	kGlslOptionSkipPreprocessor = (1<<0), // Skip preprocessing shader source. Saves some time if you know you don't need it.
-	kGlslOptionNotFullShader = (1<<1), // Passed shader is not the full shader source. This makes some optimizations weaker.
+	kRegalGlslOptionSkipPreprocessor = (1<<0), // Skip preprocessing shader source. Saves some time if you know you don't need it.
+	kRegalGlslOptionNotFullShader = (1<<1), // Passed shader is not the full shader source. This makes some optimizations weaker.
 };
 
-regal_glsl_ctx* regal_glsl_initialize (bool openglES);
+regal_glsl_ctx* regal_glsl_initialize ();
 void regal_glsl_cleanup (regal_glsl_ctx* ctx);
 
 regal_glsl_shader* regal_glsl_optimize (regal_glsl_ctx* ctx, regal_glsl_shader_type type, const char* shaderSource, unsigned options);

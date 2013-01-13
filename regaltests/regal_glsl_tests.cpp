@@ -1,55 +1,12 @@
+#include <string.h>
 #include <string>
 #include <vector>
 #include <time.h>
 #include "../regal/regal_glsl.h"
 
-#if __linux__
-#define GOT_GFX 0
-#else
-#define GOT_GFX 1
-#endif
-
-#if GOT_GFX
-
-#ifdef _MSC_VER
-#define GOT_MORE_THAN_GLSL_120 1
-#include <windows.h>
-#include <gl/GL.h>
-extern "C" {
-typedef char GLcharARB;		/* native character */
-typedef unsigned int GLhandleARB;	/* shader object handle */
-#define GL_VERTEX_SHADER_ARB              0x8B31
-#define GL_FRAGMENT_SHADER_ARB            0x8B30
-#define GL_OBJECT_COMPILE_STATUS_ARB      0x8B81
-typedef void (WINAPI * PFNGLDELETEOBJECTARBPROC) (GLhandleARB obj);
-typedef GLhandleARB (WINAPI * PFNGLCREATESHADEROBJECTARBPROC) (GLenum shaderType);
-typedef void (WINAPI * PFNGLSHADERSOURCEARBPROC) (GLhandleARB shaderObj, GLsizei count, const GLcharARB* *string, const GLint *length);
-typedef void (WINAPI * PFNGLCOMPILESHADERARBPROC) (GLhandleARB shaderObj);
-typedef void (WINAPI * PFNGLGETINFOLOGARBPROC) (GLhandleARB obj, GLsizei maxLength, GLsizei *length, GLcharARB *infoLog);
-typedef void (WINAPI * PFNGLGETOBJECTPARAMETERIVARBPROC) (GLhandleARB obj, GLenum pname, GLint *params);
-static PFNGLDELETEOBJECTARBPROC glDeleteObjectARB;
-static PFNGLCREATESHADEROBJECTARBPROC glCreateShaderObjectARB;
-static PFNGLSHADERSOURCEARBPROC glShaderSourceARB;
-static PFNGLCOMPILESHADERARBPROC glCompileShaderARB;
-static PFNGLGETINFOLOGARBPROC glGetInfoLogARB;
-static PFNGLGETOBJECTPARAMETERIVARBPROC glGetObjectParameterivARB;
-}
-#else
-#define GOT_MORE_THAN_GLSL_120 0
-#include <OpenGL/OpenGL.h>
-#include <AGL/agl.h>
-#include <dirent.h>
-#endif
-
-#else // GOT_GFX
-#define GOT_MORE_THAN_GLSL_120 0
 #include <cstdio>
 #include <cstring>
 #include "dirent.h"
-#include "GL/gl.h"
-#include "GL/glext.h"
-#endif
-
 
 #ifndef _MSC_VER
 #include <unistd.h>
@@ -94,20 +51,16 @@ static bool ReadStringFromFile (const char* pathName, std::string& output)
 	return true;
 }
 
-bool EndsWith (const std::string& str, const std::string& sub)
-{
-	return (str.size() >= sub.size()) && (strncmp (str.c_str()+str.size()-sub.size(), sub.c_str(), sub.size())==0);
-}
 
 typedef std::vector<std::string> StringVector;
 
-static StringVector GetFiles (const std::string& folder, const std::string& endsWith)
+static StringVector GetFiles (const std::string& folder)
 {
 	StringVector res;
 
 	#ifdef _MSC_VER
 	WIN32_FIND_DATAA FindFileData;
-	HANDLE hFind = FindFirstFileA ((folder+"/*"+endsWith).c_str(), &FindFileData);
+	HANDLE hFind = FindFirstFileA ((folder+"/*-in.txt").c_str(), &FindFileData);
 	if (hFind == INVALID_HANDLE_VALUE)
 		return res;
 
@@ -130,8 +83,8 @@ static StringVector GetFiles (const std::string& folder, const std::string& ends
 		std::string fname = dp->d_name;
 		if (fname == "." || fname == "..")
 			continue;
-		if (!EndsWith (fname, endsWith))
-			continue;
+    if( fname.rfind( "-in.txt" ) == std::string::npos )
+      continue;
 		res.push_back (fname);
 	}
 	closedir(dirp);
@@ -150,29 +103,11 @@ static void DeleteFile (const std::string& path)
 	#endif
 }
 
-static void MassageVertexForGLES (std::string& s)
-{
-	std::string pre;
-	pre += "#define gl_Vertex _glesVertex\nattribute highp vec4 _glesVertex;\n";
-	pre += "#define gl_Normal _glesNormal\nattribute mediump vec3 _glesNormal;\n";
-	pre += "#define gl_MultiTexCoord0 _glesMultiTexCoord0\nattribute highp vec4 _glesMultiTexCoord0;\n";
-	pre += "#define gl_MultiTexCoord1 _glesMultiTexCoord1\nattribute highp vec4 _glesMultiTexCoord1;\n";
-	pre += "#define gl_Color _glesColor\nattribute lowp vec4 _glesColor;\n";
-	s = pre + s;
-}
-
-static void MassageFragmentForGLES (std::string& s)
-{
-	std::string pre;
-	s = pre + s;
-}
-
 static bool TestFile (regal_glsl_ctx* ctx, bool vertex,
 	const std::string& testName,
 	const std::string& inputPath,
 	const std::string& hirPath,
-	const std::string& outputPath,
-	bool gles )
+	const std::string& outputPath )
 {
 	std::string input;
 	if (!ReadStringFromFile (inputPath.c_str(), input))
@@ -180,17 +115,10 @@ static bool TestFile (regal_glsl_ctx* ctx, bool vertex,
 		printf ("\n  %s: failed to read input file\n", testName.c_str());
 		return false;
 	}
-	if (gles)
-	{
-		if (vertex)
-			MassageVertexForGLES (input);
-		else
-			MassageFragmentForGLES (input);
-	}
 
 	bool res = true;
 
-	regal_glsl_shader_type type = vertex ? kGlslOptShaderVertex : kGlslOptShaderFragment;
+	regal_glsl_shader_type type = vertex ? kRegalGlslShaderVertex : kRegalGlslShaderFragment;
 	regal_glsl_shader* shader = regal_glsl_optimize (ctx, type, input.c_str(), 0);
 
 	bool optimizeOk = regal_glsl_get_status(shader);
@@ -257,10 +185,7 @@ int main (int argc, const char** argv)
 		return 1;
 	}
 
-	regal_glsl_ctx* ctx[2] = {
-		regal_glsl_initialize(true),
-		regal_glsl_initialize(false),
-	};
+	regal_glsl_ctx* ctx = regal_glsl_initialize();
 
 	std::string baseFolder = argv[1];
 
@@ -273,31 +198,22 @@ int main (int argc, const char** argv)
 	{
 		std::string testFolder = baseFolder + "/" + kTypeName[type];
 
-		static const char* kAPIName[2] = { "OpenGL ES 2.0", "OpenGL" };
-		static const char* kApiIn [2] = {"-inES.txt", "-in.txt"};
-		static const char* kApiIR [2] = {"-irES.txt", "-ir.txt"};
-		static const char* kApiOut[2] = {"-outES.txt", "-out.txt"};
-		for (int api = 0; api < 2; ++api)
-		{
-			printf ("\n** running %s tests for %s...\n", kTypeName[type], kAPIName[api]);
-			StringVector inputFiles = GetFiles (testFolder, kApiIn[api]);
-
-			size_t n = inputFiles.size();
-			for (size_t i = 0; i < n; ++i)
-			{
-				std::string inname = inputFiles[i];
-				//if (inname != "ast-in.txt")
-				//	continue;
-				std::string hirname = inname.substr (0,inname.size()-strlen(kApiIn[api])) + kApiIR[api];
-				std::string outname = inname.substr (0,inname.size()-strlen(kApiIn[api])) + kApiOut[api];
-				bool ok = TestFile (ctx[api], type==0, inname, testFolder + "/" + inname, testFolder + "/" + hirname, testFolder + "/" + outname, api==0 );
-				if (!ok)
-				{
-					++errors;
-				}
-				++tests;
-			}
-		}
+    printf ("\n** running %s tests...\n", kTypeName[type]);
+    StringVector inputFiles = GetFiles (testFolder);
+    
+    size_t n = inputFiles.size();
+    for (size_t i = 0; i < n; ++i)
+    {
+      std::string inname = inputFiles[i];
+      std::string hirname = inname.substr (0,inname.size()-strlen("-in.txt")) + "-ir.txt";
+      std::string outname = inname.substr (0,inname.size()-strlen("-in.txt")) + "-out.txt";
+      bool ok = TestFile (ctx, type==0, inname, testFolder + "/" + inname, testFolder + "/" + hirname, testFolder + "/" + outname);
+      if (!ok)
+      {
+        ++errors;
+      }
+      ++tests;
+    }
 	}
 	clock_t time1 = clock();
 	float timeDelta = float(time1-time0)/CLOCKS_PER_SEC;
@@ -310,8 +226,7 @@ int main (int argc, const char** argv)
 	// 3.25s
 	// with builtin call linking, 3.84s
 
-	for (int i = 0; i < 2; ++i)
-		regal_glsl_cleanup (ctx[i]);
+	regal_glsl_cleanup (ctx);
 
 	return errors ? 1 : 0;
 }

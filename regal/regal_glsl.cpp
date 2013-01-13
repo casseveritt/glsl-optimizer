@@ -58,9 +58,9 @@ initialize_mesa_context(struct gl_context *ctx, gl_api api)
 
 
 struct regal_glsl_ctx {
-	regal_glsl_ctx (bool openglES) {
+	regal_glsl_ctx () {
 		mem_ctx = ralloc_context (NULL);
-		initialize_mesa_context (&mesa_ctx, openglES ? API_OPENGLES2 : API_OPENGL);
+		initialize_mesa_context (&mesa_ctx, API_OPENGL);
 	}
 	~regal_glsl_ctx() {
 		ralloc_free (mem_ctx);
@@ -69,9 +69,9 @@ struct regal_glsl_ctx {
 	void* mem_ctx;
 };
 
-regal_glsl_ctx* regal_glsl_initialize (bool openglES)
+regal_glsl_ctx* regal_glsl_initialize ()
 {
-	return new regal_glsl_ctx(openglES);
+	return new regal_glsl_ctx();
 }
 
 void regal_glsl_cleanup (regal_glsl_ctx* ctx)
@@ -318,8 +318,8 @@ regal_glsl_shader* regal_glsl_optimize (regal_glsl_ctx* ctx, regal_glsl_shader_t
 
 	PrintGlslMode printMode;
 	switch (type) {
-	case kGlslOptShaderVertex: shader->shader->Type = GL_VERTEX_SHADER; printMode = kPrintGlslVertex; break;
-	case kGlslOptShaderFragment: shader->shader->Type = GL_FRAGMENT_SHADER; printMode = kPrintGlslFragment; break;
+	case kRegalGlslShaderVertex: shader->shader->Type = GL_VERTEX_SHADER; printMode = kPrintGlslVertex; break;
+	case kRegalGlslShaderFragment: shader->shader->Type = GL_FRAGMENT_SHADER; printMode = kPrintGlslFragment; break;
 	}
 	if (!shader->shader->Type)
 	{
@@ -331,7 +331,7 @@ regal_glsl_shader* regal_glsl_optimize (regal_glsl_ctx* ctx, regal_glsl_shader_t
 	_mesa_glsl_parse_state* state = new (ctx->mem_ctx) _mesa_glsl_parse_state (&ctx->mesa_ctx, shader->shader->Type, ctx->mem_ctx);
 	state->error = 0;
 
-	if (!(options & kGlslOptionSkipPreprocessor))
+	if (!(options & kRegalGlslOptionSkipPreprocessor))
 	{
 		state->error = glcpp_preprocess (state, &shaderSource, &state->info_log, state->extensions, ctx->mesa_ctx.API);
 		if (state->error)
@@ -384,7 +384,7 @@ regal_glsl_shader* regal_glsl_optimize (regal_glsl_ctx* ctx, regal_glsl_shader_t
 	// Do optimization post-link
 	if ( false && !state->error && !ir->is_empty())
 	{		
-		const bool linked = !(options & kGlslOptionNotFullShader);
+		const bool linked = !(options & kRegalGlslOptionNotFullShader);
 		do_optimization_passes(ir, linked, state, ctx);
 		validate_ir_tree(ir);
 	}	
