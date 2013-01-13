@@ -57,24 +57,24 @@ initialize_mesa_context(struct gl_context *ctx, gl_api api)
 }
 
 
-struct glslopt_ctx {
-	glslopt_ctx (bool openglES) {
+struct regal_glsl_ctx {
+	regal_glsl_ctx (bool openglES) {
 		mem_ctx = ralloc_context (NULL);
 		initialize_mesa_context (&mesa_ctx, openglES ? API_OPENGLES2 : API_OPENGL);
 	}
-	~glslopt_ctx() {
+	~regal_glsl_ctx() {
 		ralloc_free (mem_ctx);
 	}
 	struct gl_context mesa_ctx;
 	void* mem_ctx;
 };
 
-glslopt_ctx* glslopt_initialize (bool openglES)
+regal_glsl_ctx* regal_glsl_initialize (bool openglES)
 {
-	return new glslopt_ctx(openglES);
+	return new regal_glsl_ctx(openglES);
 }
 
-void glslopt_cleanup (glslopt_ctx* ctx)
+void regal_glsl_cleanup (regal_glsl_ctx* ctx)
 {
 	delete ctx;
 	_mesa_glsl_release_types();
@@ -82,7 +82,7 @@ void glslopt_cleanup (glslopt_ctx* ctx)
 }
 
 
-struct glslopt_shader
+struct regal_glsl_shader
 {
 	static void* operator new(size_t size, void *ctx)
 	{
@@ -96,7 +96,7 @@ struct glslopt_shader
 		ralloc_free(node);
 	}
 
-	glslopt_shader ()
+	regal_glsl_shader ()
 		: rawOutput(0)
 		, optimizedOutput(0)
 		, status(false)
@@ -115,7 +115,7 @@ struct glslopt_shader
 		whole_program->NumShaders++;
 	}
 	
-	~glslopt_shader()
+	~regal_glsl_shader()
 	{
 		for (unsigned i = 0; i < MESA_SHADER_TYPES; i++)
 			ralloc_free(whole_program->_LinkedShaders[i]);
@@ -257,7 +257,7 @@ static bool propagate_precision(exec_list* list)
 }
 
 
-static void do_optimization_passes(exec_list* ir, bool linked, _mesa_glsl_parse_state* state, glslopt_ctx* ctx)
+static void do_optimization_passes(exec_list* ir, bool linked, _mesa_glsl_parse_state* state, regal_glsl_ctx* ctx)
 {
 	bool progress;
 	do {
@@ -312,9 +312,9 @@ static void do_optimization_passes(exec_list* ir, bool linked, _mesa_glsl_parse_
 }
 
 
-glslopt_shader* glslopt_optimize (glslopt_ctx* ctx, glslopt_shader_type type, const char* shaderSource, unsigned options)
+regal_glsl_shader* regal_glsl_optimize (regal_glsl_ctx* ctx, regal_glsl_shader_type type, const char* shaderSource, unsigned options)
 {
-	glslopt_shader* shader = new (ctx->mem_ctx) glslopt_shader ();
+	regal_glsl_shader* shader = new (ctx->mem_ctx) regal_glsl_shader ();
 
 	PrintGlslMode printMode;
 	switch (type) {
@@ -404,27 +404,27 @@ glslopt_shader* glslopt_optimize (glslopt_ctx* ctx, glslopt_shader_type type, co
 	return shader;
 }
 
-void glslopt_shader_delete (glslopt_shader* shader)
+void regal_glsl_shader_delete (regal_glsl_shader* shader)
 {
 	delete shader;
 }
 
-bool glslopt_get_status (glslopt_shader* shader)
+bool regal_glsl_get_status (regal_glsl_shader* shader)
 {
 	return shader->status;
 }
 
-const char* glslopt_get_output (glslopt_shader* shader)
+const char* regal_glsl_get_output (regal_glsl_shader* shader)
 {
 	return shader->optimizedOutput;
 }
 
-const char* glslopt_get_raw_output (glslopt_shader* shader)
+const char* regal_glsl_get_raw_output (regal_glsl_shader* shader)
 {
 	return shader->rawOutput;
 }
 
-const char* glslopt_get_log (glslopt_shader* shader)
+const char* regal_glsl_get_log (regal_glsl_shader* shader)
 {
 	return shader->infoLog;
 }

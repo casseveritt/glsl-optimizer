@@ -8,42 +8,42 @@
 
  General usage:
 
- ctx = glslopt_initialize();
+ ctx = regal_glsl_initialize();
  for (lots of shaders) {
-   shader = glslopt_optimize (ctx, shaderType, shaderSource, options);
-   if (glslopt_get_status (shader)) {
-     newSource = glslopt_get_output (shader);
+   shader = regal_glsl_optimize (ctx, shaderType, shaderSource, options);
+   if (regal_glsl_get_status (shader)) {
+     newSource = regal_glsl_get_output (shader);
    } else {
-     errorLog = glslopt_get_log (shader);
+     errorLog = regal_glsl_get_log (shader);
    }
-   glslopt_shader_delete (shader);
+   regal_glsl_shader_delete (shader);
  }
- glslopt_cleanup (ctx);
+ regal_glsl_cleanup (ctx);
 */
 
-struct glslopt_shader;
-struct glslopt_ctx;
+struct regal_glsl_shader;
+struct regal_glsl_ctx;
 
-enum glslopt_shader_type {
+enum regal_glsl_shader_type {
 	kGlslOptShaderVertex = 0,
 	kGlslOptShaderFragment,
 };
 
 // Options flags for glsl_optimize
-enum glslopt_options {
+enum regal_glsl_options {
 	kGlslOptionSkipPreprocessor = (1<<0), // Skip preprocessing shader source. Saves some time if you know you don't need it.
 	kGlslOptionNotFullShader = (1<<1), // Passed shader is not the full shader source. This makes some optimizations weaker.
 };
 
-glslopt_ctx* glslopt_initialize (bool openglES);
-void glslopt_cleanup (glslopt_ctx* ctx);
+regal_glsl_ctx* regal_glsl_initialize (bool openglES);
+void regal_glsl_cleanup (regal_glsl_ctx* ctx);
 
-glslopt_shader* glslopt_optimize (glslopt_ctx* ctx, glslopt_shader_type type, const char* shaderSource, unsigned options);
-bool glslopt_get_status (glslopt_shader* shader);
-const char* glslopt_get_output (glslopt_shader* shader);
-const char* glslopt_get_raw_output (glslopt_shader* shader);
-const char* glslopt_get_log (glslopt_shader* shader);
-void glslopt_shader_delete (glslopt_shader* shader);
+regal_glsl_shader* regal_glsl_optimize (regal_glsl_ctx* ctx, regal_glsl_shader_type type, const char* shaderSource, unsigned options);
+bool regal_glsl_get_status (regal_glsl_shader* shader);
+const char* regal_glsl_get_output (regal_glsl_shader* shader);
+const char* regal_glsl_get_raw_output (regal_glsl_shader* shader);
+const char* regal_glsl_get_log (regal_glsl_shader* shader);
+void regal_glsl_shader_delete (regal_glsl_shader* shader);
 
 
 #endif /* GLSL_OPTIMIZER_H */

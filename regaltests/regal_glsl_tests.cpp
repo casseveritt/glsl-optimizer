@@ -1,7 +1,7 @@
 #include <string>
 #include <vector>
 #include <time.h>
-#include "../src/glsl/glsl_optimizer.h"
+#include "../regal/regal_glsl.h"
 
 #if __linux__
 #define GOT_GFX 0
@@ -167,7 +167,7 @@ static void MassageFragmentForGLES (std::string& s)
 	s = pre + s;
 }
 
-static bool TestFile (glslopt_ctx* ctx, bool vertex,
+static bool TestFile (regal_glsl_ctx* ctx, bool vertex,
 	const std::string& testName,
 	const std::string& inputPath,
 	const std::string& hirPath,
@@ -190,14 +190,14 @@ static bool TestFile (glslopt_ctx* ctx, bool vertex,
 
 	bool res = true;
 
-	glslopt_shader_type type = vertex ? kGlslOptShaderVertex : kGlslOptShaderFragment;
-	glslopt_shader* shader = glslopt_optimize (ctx, type, input.c_str(), 0);
+	regal_glsl_shader_type type = vertex ? kGlslOptShaderVertex : kGlslOptShaderFragment;
+	regal_glsl_shader* shader = regal_glsl_optimize (ctx, type, input.c_str(), 0);
 
-	bool optimizeOk = glslopt_get_status(shader);
+	bool optimizeOk = regal_glsl_get_status(shader);
 	if (optimizeOk)
 	{
-		std::string textHir = glslopt_get_raw_output (shader);
-		std::string textOpt = glslopt_get_output (shader);
+		std::string textHir = regal_glsl_get_raw_output (shader);
+		std::string textOpt = regal_glsl_get_output (shader);
 		std::string outputHir;
 		ReadStringFromFile (hirPath.c_str(), outputHir);
 		std::string outputOpt;
@@ -239,11 +239,11 @@ static bool TestFile (glslopt_ctx* ctx, bool vertex,
 	}
 	else
 	{
-		printf ("\n  %s: optimize error: %s\n", testName.c_str(), glslopt_get_log(shader));
+		printf ("\n  %s: optimize error: %s\n", testName.c_str(), regal_glsl_get_log(shader));
 		res = false;
 	}
 
-	glslopt_shader_delete (shader);
+	regal_glsl_shader_delete (shader);
 
 	return res;
 }
@@ -257,9 +257,9 @@ int main (int argc, const char** argv)
 		return 1;
 	}
 
-	glslopt_ctx* ctx[2] = {
-		glslopt_initialize(true),
-		glslopt_initialize(false),
+	regal_glsl_ctx* ctx[2] = {
+		regal_glsl_initialize(true),
+		regal_glsl_initialize(false),
 	};
 
 	std::string baseFolder = argv[1];
@@ -311,7 +311,7 @@ int main (int argc, const char** argv)
 	// with builtin call linking, 3.84s
 
 	for (int i = 0; i < 2; ++i)
-		glslopt_cleanup (ctx[i]);
+		regal_glsl_cleanup (ctx[i]);
 
 	return errors ? 1 : 0;
 }
