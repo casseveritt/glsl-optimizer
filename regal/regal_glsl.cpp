@@ -257,90 +257,29 @@ static bool propagate_precision(exec_list* list)
 }
 
 
-static void do_optimization_passes(exec_list* ir, bool linked, _mesa_glsl_parse_state* state, regal_glsl_ctx* ctx)
-{
-	bool progress;
-	do {
-		progress = false;
-		bool progress2;
-		debug_print_ir ("Initial", ir, state, ctx->mem_ctx);
-		if (linked) {
-			progress2 = do_function_inlining(ir); progress |= progress2; if (progress2) debug_print_ir ("After inlining", ir, state, ctx->mem_ctx);
-			progress2 = do_dead_functions(ir); progress |= progress2; if (progress2) debug_print_ir ("After dead functions", ir, state, ctx->mem_ctx);
-			progress2 = do_structure_splitting(ir); progress |= progress2; if (progress2) debug_print_ir ("After struct splitting", ir, state, ctx->mem_ctx);
-		}
-		progress2 = do_if_simplification(ir); progress |= progress2; if (progress2) debug_print_ir ("After if simpl", ir, state, ctx->mem_ctx);
-		progress2 = propagate_precision (ir); progress |= progress2; if (progress2) debug_print_ir ("After prec propagation", ir, state, ctx->mem_ctx);
-		progress2 = do_copy_propagation(ir); progress |= progress2; if (progress2) debug_print_ir ("After copy propagation", ir, state, ctx->mem_ctx);
-		progress2 = do_copy_propagation_elements(ir); progress |= progress2; if (progress2) debug_print_ir ("After copy propagation elems", ir, state, ctx->mem_ctx);
-		if (linked) {
-			progress2 = do_dead_code(ir,false); progress |= progress2; if (progress2) debug_print_ir ("After dead code", ir, state, ctx->mem_ctx);
-		} else {
-			progress2 = do_dead_code_unlinked(ir); progress |= progress2; if (progress2) debug_print_ir ("After dead code unlinked", ir, state, ctx->mem_ctx);
-		}
-		progress2 = do_dead_code_local(ir); progress |= progress2; if (progress2) debug_print_ir ("After dead code local", ir, state, ctx->mem_ctx);
-		progress2 = propagate_precision (ir); progress |= progress2; if (progress2) debug_print_ir ("After prec propagation", ir, state, ctx->mem_ctx);
-		progress2 = do_tree_grafting(ir); progress |= progress2; if (progress2) debug_print_ir ("After tree grafting", ir, state, ctx->mem_ctx);
-		progress2 = do_constant_propagation(ir); progress |= progress2; if (progress2) debug_print_ir ("After const propagation", ir, state, ctx->mem_ctx);
-		if (linked) {
-			progress2 = do_constant_variable(ir); progress |= progress2; if (progress2) debug_print_ir ("After const variable", ir, state, ctx->mem_ctx);
-		} else {
-			progress2 = do_constant_variable_unlinked(ir); progress |= progress2; if (progress2) debug_print_ir ("After const variable unlinked", ir, state, ctx->mem_ctx);
-		}
-		progress2 = do_constant_folding(ir); progress |= progress2; if (progress2) debug_print_ir ("After const folding", ir, state, ctx->mem_ctx);
-		progress2 = do_algebraic(ir); progress |= progress2; if (progress2) debug_print_ir ("After algebraic", ir, state, ctx->mem_ctx);
-		progress2 = do_lower_jumps(ir); progress |= progress2; if (progress2) debug_print_ir ("After lower jumps", ir, state, ctx->mem_ctx);
-		progress2 = do_vec_index_to_swizzle(ir); progress |= progress2; if (progress2) debug_print_ir ("After vec index to swizzle", ir, state, ctx->mem_ctx);
-		//progress2 = do_vec_index_to_cond_assign(ir); progress |= progress2; if (progress2) debug_print_ir ("After vec index to cond assign", ir, state, ctx->mem_ctx);
-		progress2 = do_swizzle_swizzle(ir); progress |= progress2; if (progress2) debug_print_ir ("After swizzle swizzle", ir, state, ctx->mem_ctx);
-		progress2 = do_noop_swizzle(ir); progress |= progress2; if (progress2) debug_print_ir ("After noop swizzle", ir, state, ctx->mem_ctx);
-		progress2 = optimize_split_arrays(ir, linked); progress |= progress2; if (progress2) debug_print_ir ("After split arrays", ir, state, ctx->mem_ctx);
-		progress2 = optimize_redundant_jumps(ir); progress |= progress2; if (progress2) debug_print_ir ("After redundant jumps", ir, state, ctx->mem_ctx);
-		
-		// do loop stuff only when linked; otherwise causes duplicate loop induction variable
-		// problems (ast-in.txt test)
-		if (linked)
-		{
-			loop_state *ls = analyze_loop_variables(ir);
-			if (ls->loop_found) {
-				progress2 = set_loop_controls(ir, ls); progress |= progress2; if (progress2) debug_print_ir ("After set loop", ir, state, ctx->mem_ctx);
-				progress2 = unroll_loops(ir, ls, 8); progress |= progress2; if (progress2) debug_print_ir ("After unroll", ir, state, ctx->mem_ctx);
-			}
-			delete ls;
-		}
-	} while (progress);
-}
-
-
-regal_glsl_shader* regal_glsl_optimize (regal_glsl_ctx* ctx, regal_glsl_shader_type type, const char* shaderSource, unsigned options)
+regal_glsl_shader* regal_glsl_parse (regal_glsl_ctx* ctx, regal_glsl_shader_type type, const char* shaderSource)
 {
 	regal_glsl_shader* shader = new (ctx->mem_ctx) regal_glsl_shader ();
 
 	PrintGlslMode printMode;
 	switch (type) {
-	case kRegalGlslShaderVertex: shader->shader->Type = GL_VERTEX_SHADER; printMode = kPrintGlslVertex; break;
-	case kRegalGlslShaderFragment: shader->shader->Type = GL_FRAGMENT_SHADER; printMode = kPrintGlslFragment; break;
-	}
-	if (!shader->shader->Type)
-	{
-		shader->infoLog = ralloc_asprintf (ctx->mem_ctx, "Unknown shader type %d", (int)type);
-		shader->status = false;
-		return shader;
+    case kRegalGlslShaderVertex: shader->shader->Type = GL_VERTEX_SHADER; printMode = kPrintGlslVertex; break;
+    case kRegalGlslShaderFragment: shader->shader->Type = GL_FRAGMENT_SHADER; printMode = kPrintGlslFragment; break;
+    default:
+      shader->infoLog = ralloc_asprintf (ctx->mem_ctx, "Unknown shader type %d", (int)type);
+      shader->status = false;
+      return shader;
 	}
 	
 	_mesa_glsl_parse_state* state = new (ctx->mem_ctx) _mesa_glsl_parse_state (&ctx->mesa_ctx, shader->shader->Type, ctx->mem_ctx);
 	state->error = 0;
 
-	if (!(options & kRegalGlslOptionSkipPreprocessor))
-	{
-		state->error = glcpp_preprocess (state, &shaderSource, &state->info_log, state->extensions, ctx->mesa_ctx.API);
-		if (state->error)
-		{
-			shader->status = !state->error;
-			shader->infoLog = state->info_log;
-			return shader;
-		}
-	}
+  state->error = glcpp_preprocess (state, &shaderSource, &state->info_log, state->extensions, ctx->mesa_ctx.API);
+  if (state->error)	{
+    shader->status = !state->error;
+    shader->infoLog = state->info_log;
+    return shader;
+  }
 
 	_mesa_glsl_lexer_ctor (state, shaderSource);
 	_mesa_glsl_parse (state);
@@ -363,15 +302,10 @@ regal_glsl_shader* regal_glsl_optimize (regal_glsl_ctx* ctx, regal_glsl_shader_t
 	memcpy(shader->shader->builtins_to_link, state->builtins_to_link, sizeof(shader->shader->builtins_to_link[0]) * state->num_builtins_to_link);
 	shader->shader->num_builtins_to_link = state->num_builtins_to_link;
 	
-	if (!state->error && !ir->is_empty())
-	{
-		struct gl_shader* linked_shader = link_intrastage_shaders(ctx->mem_ctx,
-																  &ctx->mesa_ctx,
-																  shader->whole_program,
-																  shader->whole_program->Shaders,
-																  shader->whole_program->NumShaders);
-		if (!linked_shader)
-		{
+	if (!state->error && !ir->is_empty())	{
+		gl_shader * linked_shader =
+    link_intrastage_shaders(ctx->mem_ctx, &ctx->mesa_ctx, shader->whole_program, shader->whole_program->Shaders, shader->whole_program->NumShaders);
+		if (!linked_shader) {
 			shader->status = false;
 			shader->infoLog = shader->whole_program->InfoLog;
 			return shader;
@@ -382,10 +316,7 @@ regal_glsl_shader* regal_glsl_optimize (regal_glsl_ctx* ctx, regal_glsl_shader_t
 	}
 	
 	// Do optimization post-link
-	if ( false && !state->error && !ir->is_empty())
-	{		
-		const bool linked = !(options & kRegalGlslOptionNotFullShader);
-		do_optimization_passes(ir, linked, state, ctx);
+	if ( false && !state->error && !ir->is_empty())	{
 		validate_ir_tree(ir);
 	}	
 	

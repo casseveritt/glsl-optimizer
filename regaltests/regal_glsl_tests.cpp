@@ -12,39 +12,24 @@
 #include <unistd.h>
 #endif
 
+using namespace std;
 
 
-static void replace_string (std::string& target, const std::string& search, const std::string& replace, size_t startPos)
-{
-	if (search.empty())
-		return;
-	
-	std::string::size_type p = startPos;
-	while ((p = target.find (search, p)) != std::string::npos)
-	{
-		target.replace (p, search.size (), replace);
-		p += replace.size ();
-	}
-}
-
-static bool ReadStringFromFile (const char* pathName, std::string& output)
-{
+static bool ReadStringFromFile (const char* pathName, string& output) {
 	FILE* file = fopen( pathName, "rb" );
 	if (file == NULL)
 		return false;
 	fseek(file, 0, SEEK_END);
 	int length = ftell(file);
 	fseek(file, 0, SEEK_SET);
-	if (length < 0)
-	{
+	if (length < 0)	{
 		fclose( file );
 		return false;
 	}
 	output.resize(length);
 	int readLength = fread(&*output.begin(), 1, length, file);
 	fclose(file);
-	if (readLength != length)
-	{
+	if (readLength != length)	{
 		output.clear();
 		return false;
 	}
@@ -52,11 +37,8 @@ static bool ReadStringFromFile (const char* pathName, std::string& output)
 }
 
 
-typedef std::vector<std::string> StringVector;
-
-static StringVector GetFiles (const std::string& folder)
-{
-	StringVector res;
+static vector<string> GetFiles (const string& folder) {
+	vector<string> res;
 
 	#ifdef _MSC_VER
 	WIN32_FIND_DATAA FindFileData;
@@ -78,12 +60,11 @@ static StringVector GetFiles (const std::string& folder)
 	if ((dirp = opendir(folder.c_str())) == NULL)
 		return res;
 
-	while ( (dp = readdir(dirp)) )
-	{
-		std::string fname = dp->d_name;
+	while ( (dp = readdir(dirp)) ) {
+		string fname = dp->d_name;
 		if (fname == "." || fname == "..")
 			continue;
-    if( fname.rfind( "-in.txt" ) == std::string::npos )
+    if( fname.rfind( "-in.txt" ) == string::npos )
       continue;
 		res.push_back (fname);
 	}
@@ -94,8 +75,7 @@ static StringVector GetFiles (const std::string& folder)
 	return res;
 }
 
-static void DeleteFile (const std::string& path)
-{
+static void DeleteFile (const string& path) {
 	#ifdef _MSC_VER
 	DeleteFileA (path.c_str());
 	#else
@@ -103,15 +83,9 @@ static void DeleteFile (const std::string& path)
 	#endif
 }
 
-static bool TestFile (regal_glsl_ctx* ctx, bool vertex,
-	const std::string& testName,
-	const std::string& inputPath,
-	const std::string& hirPath,
-	const std::string& outputPath )
-{
-	std::string input;
-	if (!ReadStringFromFile (inputPath.c_str(), input))
-	{
+static bool TestFile (regal_glsl_ctx* ctx, bool vertex,	const string& testName,	const string& inputPath,	const string& hirPath,	const string& outputPath ) {
+	string input;
+	if (!ReadStringFromFile (inputPath.c_str(), input))	{
 		printf ("\n  %s: failed to read input file\n", testName.c_str());
 		return false;
 	}
@@ -119,28 +93,23 @@ static bool TestFile (regal_glsl_ctx* ctx, bool vertex,
 	bool res = true;
 
 	regal_glsl_shader_type type = vertex ? kRegalGlslShaderVertex : kRegalGlslShaderFragment;
-	regal_glsl_shader* shader = regal_glsl_optimize (ctx, type, input.c_str(), 0);
+	regal_glsl_shader* shader = regal_glsl_parse (ctx, type, input.c_str());
 
-	bool optimizeOk = regal_glsl_get_status(shader);
-	if (optimizeOk)
-	{
-		std::string textHir = regal_glsl_get_raw_output (shader);
-		std::string textOpt = regal_glsl_get_output (shader);
-		std::string outputHir;
+	bool parseOk = regal_glsl_get_status(shader);
+	if (parseOk)	{
+		string textHir = regal_glsl_get_raw_output (shader);
+		string textOpt = regal_glsl_get_output (shader);
+		string outputHir;
 		ReadStringFromFile (hirPath.c_str(), outputHir);
-		std::string outputOpt;
+		string outputOpt;
 		ReadStringFromFile (outputPath.c_str(), outputOpt);
 
-		if (textHir != outputHir)
-		{
+		if (textHir != outputHir)	{
 			// write output
 			FILE* f = fopen (hirPath.c_str(), "wb");
-			if (!f)
-			{
+			if (!f)	{
 				printf ("\n  %s: can't write to IR file!\n", testName.c_str());
-			}
-			else
-			{
+			}	else {
 				fwrite (textHir.c_str(), 1, textHir.size(), f);
 				fclose (f);
 			}
@@ -148,25 +117,19 @@ static bool TestFile (regal_glsl_ctx* ctx, bool vertex,
 			res = false;
 		}
 
-		if (textOpt != outputOpt)
-		{
+		if (textOpt != outputOpt)	{
 			// write output
 			FILE* f = fopen (outputPath.c_str(), "wb");
-			if (!f)
-			{
+			if (!f)	{
 				printf ("\n  %s: can't write to optimized file!\n", testName.c_str());
-			}
-			else
-			{
+			}	else {
 				fwrite (textOpt.c_str(), 1, textOpt.size(), f);
 				fclose (f);
 			}
 			printf ("\n  %s: does not match optimized output\n", testName.c_str());
 			res = false;
 		}
-	}
-	else
-	{
+	}	else {
 		printf ("\n  %s: optimize error: %s\n", testName.c_str(), regal_glsl_get_log(shader));
 		res = false;
 	}
@@ -177,55 +140,46 @@ static bool TestFile (regal_glsl_ctx* ctx, bool vertex,
 }
 
 
-int main (int argc, const char** argv)
-{
-	if (argc < 2)
-	{
-		printf ("USAGE: glsloptimizer testfolder\n");
+int main (int argc, const char** argv) {
+	if (argc < 2) {
+		printf ("USAGE: regal-glsl testfolder\n");
 		return 1;
 	}
 
 	regal_glsl_ctx* ctx = regal_glsl_initialize();
 
-	std::string baseFolder = argv[1];
+	string baseFolder = argv[1];
 
 	clock_t time0 = clock();
 
 	static const char* kTypeName[2] = { "vertex", "fragment" };
 	size_t tests = 0;
 	size_t errors = 0;
-	for (int type = 0; type < 2; ++type)
-	{
-		std::string testFolder = baseFolder + "/" + kTypeName[type];
+	for (int type = 0; type < 2; ++type) {
+		string testFolder = baseFolder + "/" + kTypeName[type];
 
     printf ("\n** running %s tests...\n", kTypeName[type]);
-    StringVector inputFiles = GetFiles (testFolder);
+    vector<string> inputFiles = GetFiles (testFolder);
     
     size_t n = inputFiles.size();
-    for (size_t i = 0; i < n; ++i)
-    {
-      std::string inname = inputFiles[i];
-      std::string hirname = inname.substr (0,inname.size()-strlen("-in.txt")) + "-ir.txt";
-      std::string outname = inname.substr (0,inname.size()-strlen("-in.txt")) + "-out.txt";
+    for (size_t i = 0; i < n; ++i) {
+      string inname = inputFiles[i];
+      string hirname = inname.substr (0,inname.size()-strlen("-in.txt")) + "-ir.txt";
+      string outname = inname.substr (0,inname.size()-strlen("-in.txt")) + "-out.txt";
       bool ok = TestFile (ctx, type==0, inname, testFolder + "/" + inname, testFolder + "/" + hirname, testFolder + "/" + outname);
-      if (!ok)
-      {
-        ++errors;
-      }
+      errors += ok ? 0 : 1;
       ++tests;
     }
 	}
 	clock_t time1 = clock();
 	float timeDelta = float(time1-time0)/CLOCKS_PER_SEC;
 
-	if (errors != 0)
+	if (errors != 0) {
 		printf ("\n**** %i tests (%.2fsec), %i !!!FAILED!!!\n", (int)tests, timeDelta, (int)errors);
-	else
+	} else {
 		printf ("\n**** %i tests (%.2fsec) succeeded\n", (int)tests, timeDelta);
-	
-	// 3.25s
-	// with builtin call linking, 3.84s
-
+	}
+  
 	regal_glsl_cleanup (ctx);
 
 	return errors ? 1 : 0;
