@@ -33,6 +33,7 @@ regal_glsl_ctx* regal_glsl_initialize ();
 void regal_glsl_cleanup (regal_glsl_ctx* ctx);
 
 regal_glsl_shader* regal_glsl_parse (regal_glsl_ctx* ctx, regal_glsl_shader_type type, const char* shaderSource);
+void regal_glsl_add_alpha_test( regal_glsl_shader * shader );
 bool regal_glsl_get_status (regal_glsl_shader* shader);
 const char* regal_glsl_get_output (regal_glsl_shader* shader);
 const char* regal_glsl_get_raw_output (regal_glsl_shader* shader);

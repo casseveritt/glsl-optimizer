@@ -94,16 +94,20 @@ static bool TestFile (regal_glsl_ctx* ctx, bool vertex,	const string& testName,	
 
 	regal_glsl_shader_type type = vertex ? kRegalGlslShaderVertex : kRegalGlslShaderFragment;
 	regal_glsl_shader* shader = regal_glsl_parse (ctx, type, input.c_str());
+  regal_glsl_add_alpha_test( shader );
 
 	bool parseOk = regal_glsl_get_status(shader);
 	if (parseOk)	{
 		string textHir = regal_glsl_get_raw_output (shader);
-		string textOpt = regal_glsl_get_output (shader);
+		string textOut = regal_glsl_get_output (shader);
 		string outputHir;
 		ReadStringFromFile (hirPath.c_str(), outputHir);
-		string outputOpt;
-		ReadStringFromFile (outputPath.c_str(), outputOpt);
+		string output;
+		ReadStringFromFile (outputPath.c_str(), output);
 
+    printf( "---------------------------output-begin----------------------------\n%s"
+            "...........................output-end..............................\n", textOut.c_str() );
+    
 		if (textHir != outputHir)	{
 			// write output
 			FILE* f = fopen (hirPath.c_str(), "wb");
@@ -117,13 +121,13 @@ static bool TestFile (regal_glsl_ctx* ctx, bool vertex,	const string& testName,	
 			res = false;
 		}
 
-		if (textOpt != outputOpt)	{
+		if (textOut != output)	{
 			// write output
 			FILE* f = fopen (outputPath.c_str(), "wb");
 			if (!f)	{
 				printf ("\n  %s: can't write to optimized file!\n", testName.c_str());
 			}	else {
-				fwrite (textOpt.c_str(), 1, textOpt.size(), f);
+				fwrite (textOut.c_str(), 1, textOut.size(), f);
 				fclose (f);
 			}
 			printf ("\n  %s: does not match optimized output\n", testName.c_str());

@@ -142,121 +142,6 @@ static inline void debug_print_ir (const char* name, exec_list* ir, _mesa_glsl_p
 	#endif
 }
 
-static void propagate_precision_deref(ir_instruction *ir, void *data)
-{
-	// variable -> deference
-	ir_dereference_variable* der = ir->as_dereference_variable();
-	if (der && der->get_precision() == glsl_precision_undefined && der->var->precision != glsl_precision_undefined)
-	{
-		der->set_precision ((glsl_precision)der->var->precision);
-		*(bool*)data = true;
-	}
-	// swizzle value -> swizzle
-	ir_swizzle* swz = ir->as_swizzle();
-	if (swz && swz->get_precision() == glsl_precision_undefined && swz->val->get_precision() != glsl_precision_undefined)
-	{
-		swz->set_precision (swz->val->get_precision());
-		*(bool*)data = true;
-	}
-	
-}
-
-static void propagate_precision_expr(ir_instruction *ir, void *data)
-{
-	ir_expression* expr = ir->as_expression();
-	if (!expr)
-		return;
-	if (expr->get_precision() != glsl_precision_undefined)
-		return;
-	
-	glsl_precision prec_params_max = glsl_precision_undefined;
-	for (int i = 0; i < expr->get_num_operands(); ++i)
-	{
-		ir_rvalue* op = expr->operands[i];
-		if (op && op->get_precision() != glsl_precision_undefined)
-			prec_params_max = higher_precision (prec_params_max, op->get_precision());
-	}
-	if (expr->get_precision() != prec_params_max)
-	{
-		expr->set_precision (prec_params_max);
-		*(bool*)data = true;
-	}
-	
-}
-
-
-static void propagate_precision_assign(ir_instruction *ir, void *data)
-{
-	ir_assignment* ass = ir->as_assignment();
-	if (ass && ass->lhs && ass->rhs)
-	{
-		glsl_precision lp = ass->lhs->get_precision();
-		glsl_precision rp = ass->rhs->get_precision();
-		if (rp == glsl_precision_undefined)
-			return;
-		ir_variable* lhs_var = ass->lhs->variable_referenced();
-		if (lp == glsl_precision_undefined)
-		{		
-			if (lhs_var)
-				lhs_var->precision = rp;
-			ass->lhs->set_precision (rp);
-			*(bool*)data = true;
-		}
-	}
-}
-
-static void propagate_precision_call(ir_instruction *ir, void *data)
-{
-	ir_call* call = ir->as_call();
-	if (!call)
-		return;
-	if (!call->return_deref)
-		return;
-	if (call->return_deref->get_precision() == glsl_precision_undefined /*&& call->callee->precision == glsl_precision_undefined*/)
-	{
-		glsl_precision prec_params_max = glsl_precision_undefined;
-		exec_list_iterator iter_sig  = call->callee->parameters.iterator();
-		foreach_iter(exec_list_iterator, iter_param, call->actual_parameters)
-		{
-			ir_variable* sig_param = (ir_variable*)iter_sig.get();
-			ir_rvalue* param = (ir_rvalue*)iter_param.get();
-			
-			glsl_precision p = (glsl_precision)sig_param->precision;
-			if (p == glsl_precision_undefined)
-				p = param->get_precision();
-			
-			prec_params_max = higher_precision (prec_params_max, p);
-			
-			iter_sig.next();
-		}
-		if (call->return_deref->get_precision() != prec_params_max)
-		{
-			call->return_deref->set_precision (prec_params_max);
-			*(bool*)data = true;
-		}
-	}
-}
-
-
-static bool propagate_precision(exec_list* list)
-{
-	bool anyProgress = false;
-	bool res;
-	do {
-		res = false;
-		foreach_iter(exec_list_iterator, iter, *list) {
-			ir_instruction* ir = (ir_instruction*)iter.get();
-			visit_tree (ir, propagate_precision_deref, &res);
-			visit_tree (ir, propagate_precision_assign, &res);
-			visit_tree (ir, propagate_precision_call, &res);
-			visit_tree (ir, propagate_precision_expr, &res);
-		}
-		anyProgress |= res;
-	} while (res);
-	return anyProgress;
-}
-
-
 regal_glsl_shader* regal_glsl_parse (regal_glsl_ctx* ctx, regal_glsl_shader_type type, const char* shaderSource)
 {
 	regal_glsl_shader* shader = new (ctx->mem_ctx) regal_glsl_shader ();
@@ -321,8 +206,7 @@ regal_glsl_shader* regal_glsl_parse (regal_glsl_ctx* ctx, regal_glsl_shader_type
 	}	
 	
 	// Final optimized output
-	if (!state->error)
-	{
+	if (!state->error) {
 		shader->optimizedOutput = _mesa_print_ir_glsl(ir, state, ralloc_strdup(ctx->mem_ctx, ""), printMode);
 	}
 
@@ -334,6 +218,23 @@ regal_glsl_shader* regal_glsl_parse (regal_glsl_ctx* ctx, regal_glsl_shader_type
 
 	return shader;
 }
+
+class add_alpha_test : public ir_hierarchical_visitor {
+public:
+  virtual ir_visitor_status visit_leave(ir_function *ir) {
+    printf( "add_alpha_test: leaving function %s\n", ir->name );
+    return visit_continue;
+  }
+
+};
+
+void regal_glsl_add_alpha_test( regal_glsl_shader * shader ) {
+
+  add_alpha_test v;
+  
+  visit_list_elements(&v, shader->shader->ir );
+}
+
 
 void regal_glsl_shader_delete (regal_glsl_shader* shader)
 {
