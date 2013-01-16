@@ -312,7 +312,7 @@ regal_glsl_shader* regal_glsl_parse (regal_glsl_ctx* ctx, regal_glsl_shader_type
 		}
 		ir = linked_shader->ir;
 		
-		debug_print_ir ("==== After link ====", ir, state, ctx->mem_ctx);
+		//debug_print_ir ("==== After link ====", ir, state, ctx->mem_ctx);
 	}
 	
 	// Do optimization post-link
