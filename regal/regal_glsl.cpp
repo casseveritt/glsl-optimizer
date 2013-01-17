@@ -213,8 +213,8 @@ regal_glsl_shader* regal_glsl_parse (regal_glsl_ctx* ctx, regal_glsl_shader_type
 	shader->status = !state->error;
 	shader->infoLog = state->info_log;
 
-	ralloc_free (ir);
-	ralloc_free (state);
+	//ralloc_free (ir);
+	//ralloc_free (state);
 
 	return shader;
 }
@@ -223,6 +223,9 @@ class add_alpha_test : public ir_hierarchical_visitor {
 public:
   virtual ir_visitor_status visit_leave(ir_function *ir) {
     printf( "add_alpha_test: leaving function %s\n", ir->name );
+    void * ctx = ralloc_parent( base_ir );
+    //ir_variable *var = new(ctx) ir_variable( glsl_type::float_type, "alphatesty", ir_var_temporary, glsl_precision_undefined);
+    //var->insert_after( ir );
     return visit_continue;
   }
 
