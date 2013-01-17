@@ -95,6 +95,7 @@ static bool TestFile (regal_glsl_ctx* ctx, bool vertex,	const string& testName,	
 	regal_glsl_shader_type type = vertex ? kRegalGlslShaderVertex : kRegalGlslShaderFragment;
 	regal_glsl_shader* shader = regal_glsl_parse (ctx, type, input.c_str());
   regal_glsl_add_alpha_test( shader );
+  regal_glsl_gen_output( shader );
 
 	bool parseOk = regal_glsl_get_status(shader);
 	if (parseOk)	{

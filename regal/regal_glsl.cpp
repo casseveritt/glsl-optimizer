@@ -84,10 +84,10 @@ void regal_glsl_cleanup (regal_glsl_ctx* ctx)
 
 struct regal_glsl_shader
 {
-	static void* operator new(size_t size, void *ctx)
+	static void* operator new(size_t size, void *mem_ctx)
 	{
 		void *node;
-		node = ralloc_size(ctx, size);
+		node = ralloc_size(mem_ctx, size);
 		assert(node != NULL);
 		return node;
 	}
@@ -97,7 +97,8 @@ struct regal_glsl_shader
 	}
 
 	regal_glsl_shader ()
-		: rawOutput(0)
+		: state( NULL )
+    , rawOutput(0)
 		, optimizedOutput(0)
 		, status(false)
 	{
@@ -117,6 +118,8 @@ struct regal_glsl_shader
 	
 	~regal_glsl_shader()
 	{
+    ralloc_free (shader->ir);
+    ralloc_free (state);
 		for (unsigned i = 0; i < MESA_SHADER_TYPES; i++)
 			ralloc_free(whole_program->_LinkedShaders[i]);
 		ralloc_free(whole_program);
@@ -124,6 +127,8 @@ struct regal_glsl_shader
 	
 	struct gl_shader_program* whole_program;
 	struct gl_shader* shader;
+  _mesa_glsl_parse_state* state;
+  regal_glsl_ctx * ctx;
 
 	char*	rawOutput;
 	char*	optimizedOutput;
@@ -145,6 +150,7 @@ static inline void debug_print_ir (const char* name, exec_list* ir, _mesa_glsl_p
 regal_glsl_shader* regal_glsl_parse (regal_glsl_ctx* ctx, regal_glsl_shader_type type, const char* shaderSource)
 {
 	regal_glsl_shader* shader = new (ctx->mem_ctx) regal_glsl_shader ();
+  shader->ctx = ctx;
 
 	PrintGlslMode printMode;
 	switch (type) {
@@ -155,8 +161,9 @@ regal_glsl_shader* regal_glsl_parse (regal_glsl_ctx* ctx, regal_glsl_shader_type
       shader->status = false;
       return shader;
 	}
-	
+
 	_mesa_glsl_parse_state* state = new (ctx->mem_ctx) _mesa_glsl_parse_state (&ctx->mesa_ctx, shader->shader->Type, ctx->mem_ctx);
+  shader->state = state;
 	state->error = 0;
 
   state->error = glcpp_preprocess (state, &shaderSource, &state->info_log, state->extensions, ctx->mesa_ctx.API);
@@ -181,7 +188,28 @@ regal_glsl_shader* regal_glsl_parse (regal_glsl_ctx* ctx, regal_glsl_shader_type
 		validate_ir_tree(ir);
 		shader->rawOutput = _mesa_print_ir_glsl(ir, state, ralloc_strdup(ctx->mem_ctx, ""), printMode);
 	}
-	
+
+	return shader;
+}
+
+void regal_glsl_gen_output( regal_glsl_shader * shader ) {
+  
+  // shorthand
+  _mesa_glsl_parse_state * state = shader->state;
+  exec_list * ir = shader->shader->ir;
+  regal_glsl_ctx *ctx = shader->ctx;
+  
+  PrintGlslMode printMode;
+	switch (shader->shader->Type) {
+    case GL_VERTEX_SHADER: printMode = kPrintGlslVertex; break;
+    case GL_FRAGMENT_SHADER: printMode = kPrintGlslFragment; break;
+    default:
+      shader->infoLog = ralloc_asprintf (ctx->mem_ctx, "Unknown shader type %d", (int)shader->shader->Type);
+      shader->status = false;
+      return;
+	}
+
+  
 	// Link built-in functions
 	shader->shader->symbols = state->symbols;
 	memcpy(shader->shader->builtins_to_link, state->builtins_to_link, sizeof(shader->shader->builtins_to_link[0]) * state->num_builtins_to_link);
@@ -193,7 +221,7 @@ regal_glsl_shader* regal_glsl_parse (regal_glsl_ctx* ctx, regal_glsl_shader_type
 		if (!linked_shader) {
 			shader->status = false;
 			shader->infoLog = shader->whole_program->InfoLog;
-			return shader;
+			return;
 		}
 		ir = linked_shader->ir;
 		
@@ -203,29 +231,25 @@ regal_glsl_shader* regal_glsl_parse (regal_glsl_ctx* ctx, regal_glsl_shader_type
 	// Do optimization post-link
 	if ( false && !state->error && !ir->is_empty())	{
 		validate_ir_tree(ir);
-	}	
+	}
 	
 	// Final optimized output
 	if (!state->error) {
 		shader->optimizedOutput = _mesa_print_ir_glsl(ir, state, ralloc_strdup(ctx->mem_ctx, ""), printMode);
 	}
-
+  
 	shader->status = !state->error;
 	shader->infoLog = state->info_log;
-
-	//ralloc_free (ir);
-	//ralloc_free (state);
-
-	return shader;
 }
+
 
 class add_alpha_test : public ir_hierarchical_visitor {
 public:
   virtual ir_visitor_status visit_leave(ir_function *ir) {
-    printf( "add_alpha_test: leaving function %s\n", ir->name );
-    void * ctx = ralloc_parent( base_ir );
-    //ir_variable *var = new(ctx) ir_variable( glsl_type::float_type, "alphatesty", ir_var_temporary, glsl_precision_undefined);
-    //var->insert_after( ir );
+    printf( "add_alpha_test: function %s\n", ir->name );
+    void * ctx = ralloc_parent( ir );
+    ir_variable *var = new(ctx) ir_variable( glsl_type::float_type, "alphatesty", ir_var_auto, glsl_precision_undefined);
+    ir->insert_before( var );
     return visit_continue;
   }
 
@@ -236,6 +260,7 @@ void regal_glsl_add_alpha_test( regal_glsl_shader * shader ) {
   add_alpha_test v;
   
   visit_list_elements(&v, shader->shader->ir );
+  validate_ir_tree( shader->shader->ir );
 }
 
 
