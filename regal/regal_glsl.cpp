@@ -245,12 +245,29 @@ void regal_glsl_gen_output( regal_glsl_shader * shader ) {
 
 class add_alpha_test : public ir_hierarchical_visitor {
 public:
+
+  virtual ir_visitor_status visit_enter(ir_function *ir_f) {
+    printf( "add_alpha_test: visit_enter function %s\n", ir_f->name );
+    if( strcmp( ir_f->name, "main") != 0 ) {
+      return visit_continue;
+    }
+    void * ctx = ralloc_parent( ir_f );
+    ir_variable *var = new(ctx) ir_variable( glsl_type::float_type, "rglAlphaRef", ir_var_uniform, glsl_precision_undefined);
+    ir_f->insert_before( var );
+    return visit_continue;
+  }
+
+  
   virtual ir_visitor_status visit_leave(ir_function_signature *ir_fs) {
-    printf( "add_alpha_test: function %s\n", ir_fs->function_name() );
+    printf( "add_alpha_test: visit_leave function_signature %s\n", ir_fs->function_name() );
+    if( strcmp( ir_fs->function_name(), "main") != 0 ) {
+      return visit_continue;
+    }
     void * ctx = ralloc_parent( ir_fs );
     //ir_instruction * ir = (ir_instruction *)ir_fs->body.get_tail();
-    ir_variable *var = new(ctx) ir_variable( glsl_type::float_type, "alphatesty", ir_var_auto, glsl_precision_undefined);
-    ir_fs->body.push_tail( var );
+    //ir_call * alpha_test_call = new(ctx) ir_call();
+    //ir_if * alpha_test_if = new(ctx) ir_if();
+    //ir_fs->body.push_tail( var );
     //ir->insert_after( var );
     //ir_expression * alpha_test =
     return visit_continue;
