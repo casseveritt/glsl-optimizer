@@ -7,5 +7,10 @@ void main ()
   vec4 tmpvar_1;
   tmpvar_1 = col;
   fragCol = tmpvar_1;
+  bool tmpvar_2;
+  tmpvar_2 = (rglAlphaRef > 0.5);
+  if (!(tmpvar_2)) {
+    discard;
+  };
 }
 

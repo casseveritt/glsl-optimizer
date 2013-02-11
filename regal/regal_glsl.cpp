@@ -252,8 +252,8 @@ public:
       return visit_continue;
     }
     void * ctx = ralloc_parent( ir_f );
-    ir_variable *var = new(ctx) ir_variable( glsl_type::float_type, "rglAlphaRef", ir_var_uniform, glsl_precision_undefined);
-    ir_f->insert_before( var );
+    varAlphaRef = new(ctx) ir_variable( glsl_type::float_type, "rglAlphaRef", ir_var_uniform, glsl_precision_undefined);
+    ir_f->insert_before( varAlphaRef );
     return visit_continue;
   }
 
@@ -264,16 +264,20 @@ public:
       return visit_continue;
     }
     void * ctx = ralloc_parent( ir_fs );
-    //ir_instruction * ir = (ir_instruction *)ir_fs->body.get_tail();
-    //ir_call * alpha_test_call = new(ctx) ir_call();
-    //ir_if * alpha_test_if = new(ctx) ir_if();
-    //ir_fs->body.push_tail( var );
-    //ir->insert_after( var );
-    //ir_expression * alpha_test =
+    ir_variable *var = new(ctx) ir_variable( glsl_type::bool_type, "rglAlphaTestResult", ir_var_temporary, glsl_precision_undefined);
+    
+    ir_fs->body.get_tail()->insert_after( var );
+    ir_expression * test = new(ctx) ir_expression( ir_binop_greater, glsl_type::bool_type, new(ctx) ir_dereference_variable( varAlphaRef ), new(ctx) ir_constant( 0.5f ) );
+    ir_assignment * tass = new(ctx) ir_assignment( new(ctx) ir_dereference_variable( var ), test, NULL );
+    ir_fs->body.get_tail()->insert_after( tass );
+    ir_if * ifalphafailed = new(ctx) ir_if( new(ctx) ir_expression( ir_unop_logic_not, glsl_type::bool_type, new(ctx) ir_dereference_variable(var) ) );
+    ifalphafailed->then_instructions.push_head( new(ctx) ir_discard() );
+    ir_fs->body.get_tail()->insert_after( ifalphafailed );
     return visit_continue;
   }
 
   exec_list last;
+  ir_variable *varAlphaRef;
 };
 
 void regal_glsl_add_alpha_test( regal_glsl_shader * shader ) {

@@ -15,5 +15,10 @@ void main ()
   vec4 tmpvar_3;
   tmpvar_3 = (tmpvar_2 + position);
   gl_Position = tmpvar_3;
+  bool tmpvar_4;
+  tmpvar_4 = (rglAlphaRef > 0.5);
+  if (!(tmpvar_4)) {
+    discard;
+  };
 }
 
