@@ -245,6 +245,15 @@ void regal_glsl_gen_output( regal_glsl_shader * shader ) {
 
 class add_alpha_test : public ir_hierarchical_visitor {
 public:
+  
+  add_alpha_test( RegalAlphaFunc raf ) : func( raf ), alphaRef( NULL ), fragColor( NULL ) {}
+  
+  virtual ir_visitor_status visit(ir_variable *var) {
+    if( fragColor == NULL && var->type == glsl_type::vec4_type && ( var->mode == ir_var_out || var->mode == ir_var_inout ) ) {
+      fragColor = var;
+    }
+    return visit_continue;
+  }
 
   virtual ir_visitor_status visit_enter(ir_function *ir_f) {
     printf( "add_alpha_test: visit_enter function %s\n", ir_f->name );
@@ -252,8 +261,8 @@ public:
       return visit_continue;
     }
     void * ctx = ralloc_parent( ir_f );
-    varAlphaRef = new(ctx) ir_variable( glsl_type::float_type, "rglAlphaRef", ir_var_uniform, glsl_precision_undefined);
-    ir_f->insert_before( varAlphaRef );
+    alphaRef = new(ctx) ir_variable( glsl_type::float_type, "rglAlphaRef", ir_var_uniform, glsl_precision_undefined);
+    ir_f->insert_before( alphaRef );
     return visit_continue;
   }
 
@@ -264,25 +273,37 @@ public:
       return visit_continue;
     }
     void * ctx = ralloc_parent( ir_fs );
-    ir_variable *var = new(ctx) ir_variable( glsl_type::bool_type, "rglAlphaTestResult", ir_var_temporary, glsl_precision_undefined);
-    
-    ir_fs->body.get_tail()->insert_after( var );
-    ir_expression * test = new(ctx) ir_expression( ir_binop_greater, glsl_type::bool_type, new(ctx) ir_dereference_variable( varAlphaRef ), new(ctx) ir_constant( 0.5f ) );
-    ir_assignment * tass = new(ctx) ir_assignment( new(ctx) ir_dereference_variable( var ), test, NULL );
-    ir_fs->body.get_tail()->insert_after( tass );
-    ir_if * ifalphafailed = new(ctx) ir_if( new(ctx) ir_expression( ir_unop_logic_not, glsl_type::bool_type, new(ctx) ir_dereference_variable(var) ) );
+    ir_rvalue * test = NULL;
+    ir_rvalue * a = new(ctx) ir_swizzle( new(ctx) ir_dereference_variable( fragColor ), 3, 0, 0, 0, 1 );
+    ir_rvalue * ref = new(ctx) ir_dereference_variable( alphaRef );
+    switch( func ) {
+      case RAF_Less:     test = new(ctx) ir_expression( ir_binop_less,    glsl_type::bool_type, a, ref ); break;
+      case RAF_Lequal:   test = new(ctx) ir_expression( ir_binop_lequal,  glsl_type::bool_type, a, ref ); break;
+      case RAF_Equal:    test = new(ctx) ir_expression( ir_binop_equal,   glsl_type::bool_type, a, ref ); break;
+      case RAF_Gequal:   test = new(ctx) ir_expression( ir_binop_gequal,  glsl_type::bool_type, a, ref ); break;
+      case RAF_Greater:  test = new(ctx) ir_expression( ir_binop_greater, glsl_type::bool_type, a, ref ); break;
+      case RAF_NotEqual: test = new(ctx) ir_expression( ir_binop_nequal,  glsl_type::bool_type, a, ref ); break;
+      case RAF_Never:    test = new(ctx) ir_constant( false ); break;
+      case RAF_Always:   test = new(ctx) ir_constant( true );  break;
+      default:
+        // assert
+        break;
+    }
+    ir_if * ifalphafailed = new(ctx) ir_if( new(ctx) ir_expression( ir_unop_logic_not, test ) );
     ifalphafailed->then_instructions.push_head( new(ctx) ir_discard() );
     ir_fs->body.get_tail()->insert_after( ifalphafailed );
+    
     return visit_continue;
   }
 
-  exec_list last;
-  ir_variable *varAlphaRef;
+  RegalAlphaFunc func;
+  ir_variable *alphaRef;
+  ir_variable *fragColor;
 };
 
-void regal_glsl_add_alpha_test( regal_glsl_shader * shader ) {
+void regal_glsl_add_alpha_test( regal_glsl_shader * shader, RegalAlphaFunc func ) {
 
-  add_alpha_test v;
+  add_alpha_test v(func);
   
   visit_list_elements(&v, shader->shader->ir );
   validate_ir_tree( shader->shader->ir );
