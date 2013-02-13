@@ -13,6 +13,8 @@
 extern "C" struct gl_shader *
 _mesa_new_shader(struct gl_context *ctx, GLuint name, GLenum type);
 
+#include <string>
+#include <map>
 
 static void
 initialize_mesa_context(struct gl_context *ctx, gl_api api)
@@ -303,7 +305,59 @@ public:
 
 void regal_glsl_add_alpha_test( regal_glsl_shader * shader, RegalAlphaFunc func ) {
 
+  if( shader == NULL || shader->shader == NULL || shader->shader->Type != GL_FRAGMENT_SHADER ) {
+    return;
+  }
   add_alpha_test v(func);
+  
+  visit_list_elements(&v, shader->shader->ir );
+  validate_ir_tree( shader->shader->ir );
+}
+
+class replace_builtins : public ir_hierarchical_visitor {
+public:
+  replace_builtins( exec_list * shader_ir_ ) : shader_ir( shader_ir_ ) {
+    void * ctx = ralloc_parent( shader_ir );
+    ir_variable * v;
+    v = new(ctx) ir_variable( glsl_type::vec4_type, "rglColor", ir_var_in, glsl_precision_undefined );
+    vars[ "gl_Color" ] = v;
+    v = new(ctx) ir_variable( glsl_type::vec3_type, "rglNormal", ir_var_in, glsl_precision_undefined );
+    vars[ "gl_Normal" ] = v;
+  }
+
+  ir_variable * add_global( std::string name ) {
+  
+    if( vars.count( name ) == 0 ) {
+      return NULL;
+    }
+    if( declared.count( name ) ) {
+      return NULL;
+    }
+    declared[ name ] = true;
+    ir_variable * v = vars[ name ];
+    shader_ir->get_head()->insert_before( v );
+    return v;
+  }
+  
+  virtual ir_visitor_status visit(ir_dereference_variable *varref) {
+    ir_variable * v = add_global( varref->var->name );
+    if( v ) {
+      varref->var = v;
+    }
+    return visit_continue;
+  }
+  
+
+  exec_list * shader_ir;
+  std::map< std::string, ir_variable * > vars;
+  std::map< std::string, bool > declared;
+};
+
+void regal_glsl_replace_builtins( regal_glsl_shader * shader ) {
+  if( shader == NULL || shader->shader == NULL ) {
+    return;
+  }
+  replace_builtins v(shader->shader->ir);
   
   visit_list_elements(&v, shader->shader->ir );
   validate_ir_tree( shader->shader->ir );
