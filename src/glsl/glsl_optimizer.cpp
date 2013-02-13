@@ -133,11 +133,11 @@ struct glslopt_shader
 
 static inline void debug_print_ir (const char* name, exec_list* ir, _mesa_glsl_parse_state* state, void* memctx)
 {
-	#if 0
+	#if 1
 	printf("**** %s:\n", name);
 	//_mesa_print_ir (ir, state);
 	char* foobar = _mesa_print_ir_glsl(ir, state, ralloc_strdup(memctx, ""), kPrintGlslFragment);
-	printf(foobar);
+	printf( "%s", foobar);
 	validate_ir_tree(ir);
 	#endif
 }
@@ -382,7 +382,7 @@ glslopt_shader* glslopt_optimize (glslopt_ctx* ctx, glslopt_shader_type type, co
 	}
 	
 	// Do optimization post-link
-	if (!state->error && !ir->is_empty())
+	if ( false && !state->error && !ir->is_empty())
 	{		
 		const bool linked = !(options & kGlslOptionNotFullShader);
 		do_optimization_passes(ir, linked, state, ctx);

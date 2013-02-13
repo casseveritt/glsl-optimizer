@@ -1,0 +1,14 @@
+#version 140
+out vec4 fragCol;
+in vec4 col;
+uniform float rglAlphaRef;
+void main ()
+{
+  vec4 tmpvar_1;
+  tmpvar_1 = col;
+  fragCol = tmpvar_1;
+  if (!((fragCol.w >= rglAlphaRef))) {
+    discard;
+  };
+}
+
