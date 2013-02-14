@@ -316,13 +316,56 @@ void regal_glsl_add_alpha_test( regal_glsl_shader * shader, RegalAlphaFunc func 
 
 class replace_builtins : public ir_hierarchical_visitor {
 public:
-  replace_builtins( exec_list * shader_ir_ ) : shader_ir( shader_ir_ ) {
-    void * ctx = ralloc_parent( shader_ir );
+  replace_builtins( regal_glsl_shader * shader_ ) : shader( shader_ ) {
     ir_variable * v;
+    if( shader == NULL || shader->shader == NULL ) {
+      // assert
+      return;
+    }
+    void * ctx = ralloc_parent( shader->shader->ir );
+    
+    // attribs
     v = new(ctx) ir_variable( glsl_type::vec4_type, "rglColor", ir_var_in, glsl_precision_undefined );
     vars[ "gl_Color" ] = v;
     v = new(ctx) ir_variable( glsl_type::vec3_type, "rglNormal", ir_var_in, glsl_precision_undefined );
     vars[ "gl_Normal" ] = v;
+
+    // uniforms
+    v = new(ctx) ir_variable( glsl_type::mat4_type, "rglModelViewMatrix", ir_var_uniform, glsl_precision_undefined );
+    vars[ "gl_ModelViewMatrix" ] = v;
+    v = new(ctx) ir_variable( glsl_type::mat4_type, "rglProjectionMatrix", ir_var_uniform, glsl_precision_undefined );
+    vars[ "gl_ProjectionMatrix" ] = v;
+    v = new(ctx) ir_variable( glsl_type::mat4_type, "rglModelViewProjectionMatrix", ir_var_uniform, glsl_precision_undefined );
+    vars[ "gl_ModelViewProjectionMatrix" ] = v;
+    glsl_type * type = new glsl_type( *glsl_type::mat4_type );
+    type->base_type = GLSL_TYPE_ARRAY;
+    type->length = 8; // based on max texture units
+    type->fields.array = glsl_type::mat4_type;
+    //type = glsl_type(GL_FLOAT, GLSL_TYPE_FLOAT, 4, 4, "squirrel");
+    v = new(ctx) ir_variable( type, "rglTextureMatrix", ir_var_uniform, glsl_precision_undefined );
+    vars[ "gl_TextureMatrix" ] = v;
+    //v = new(ctx) ir_variable( glsl_type::mat4_type, "rgl Matrix", ir_var_uniform, glsl_precision_undefined );
+    //vars[ "gl_ Matrix" ] = v;
+    
+    /*
+    uniform mat4 gl_ProjectionMatrix;
+    uniform mat4 gl_ModelViewProjectionMatrix;
+    uniform mat4 gl_TextureMatrix[gl_MaxTextureCoords];
+    uniform mat3 gl_NormalMatrix;
+    uniform mat4 gl_ModelViewMatrixInverse;
+    uniform mat4 gl_ProjectionMatrixInverse;
+    uniform mat4 gl_ModelViewProjectionMatrixInverse;
+    uniform mat4 gl_TextureMatrixInverse[gl_MaxTextureCoords];
+    uniform mat4 gl_ModelViewMatrixTranspose;
+    uniform mat4 gl_ProjectionMatrixTranspose;
+    uniform mat4 gl_ModelViewProjectionMatrixTranspose;
+    uniform mat4 gl_TextureMatrixTranspose[gl_MaxTextureCoords];
+    uniform mat4 gl_ModelViewMatrixInverseTranspose;
+    uniform mat4 gl_ProjectionMatrixInverseTranspose;
+    uniform mat4 gl_ModelViewProjectionMatrixInverseTranspose;
+    uniform mat4 gl_TextureMatrixInverseTranspose[gl_MaxTextureCoords];
+     */
+    
   }
 
   ir_variable * add_global( std::string name ) {
@@ -335,7 +378,7 @@ public:
     }
     declared[ name ] = true;
     ir_variable * v = vars[ name ];
-    shader_ir->get_head()->insert_before( v );
+    shader->shader->ir->get_head()->insert_before( v );
     return v;
   }
   
@@ -348,7 +391,7 @@ public:
   }
   
 
-  exec_list * shader_ir;
+  regal_glsl_shader * shader;
   std::map< std::string, ir_variable * > vars;
   std::map< std::string, bool > declared;
 };
@@ -357,7 +400,7 @@ void regal_glsl_replace_builtins( regal_glsl_shader * shader ) {
   if( shader == NULL || shader->shader == NULL ) {
     return;
   }
-  replace_builtins v(shader->shader->ir);
+  replace_builtins v(shader);
   
   visit_list_elements(&v, shader->shader->ir );
   validate_ir_tree( shader->shader->ir );
