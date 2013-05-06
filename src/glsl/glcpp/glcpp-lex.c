@@ -9,7 +9,7 @@
 #define FLEX_SCANNER
 #define YY_FLEX_MAJOR_VERSION 2
 #define YY_FLEX_MINOR_VERSION 5
-#define YY_FLEX_SUBMINOR_VERSION 35
+#define YY_FLEX_SUBMINOR_VERSION 37
 #if YY_FLEX_SUBMINOR_VERSION > 0
 #define FLEX_BETA
 #endif
@@ -47,7 +47,6 @@ typedef int16_t flex_int16_t;
 typedef uint16_t flex_uint16_t;
 typedef int32_t flex_int32_t;
 typedef uint32_t flex_uint32_t;
-typedef uint64_t flex_uint64_t;
 #else
 typedef signed char flex_int8_t;
 typedef short int flex_int16_t;
@@ -55,7 +54,6 @@ typedef int flex_int32_t;
 typedef unsigned char flex_uint8_t; 
 typedef unsigned short int flex_uint16_t;
 typedef unsigned int flex_uint32_t;
-#endif /* ! C99 */
 
 /* Limits of integral types. */
 #ifndef INT8_MIN
@@ -85,6 +83,8 @@ typedef unsigned int flex_uint32_t;
 #ifndef UINT32_MAX
 #define UINT32_MAX             (4294967295U)
 #endif
+
+#endif /* ! C99 */
 
 #endif /* ! FLEXINT_H */
 
@@ -326,7 +326,7 @@ void glcpp_free (void * ,yyscan_t yyscanner );
 
 /* Begin user sect3 */
 
-#define glcpp_wrap(n) 1
+#define glcpp_wrap(yyscanner) 1
 #define YY_SKIP_YYWRAP
 
 typedef unsigned char YY_CHAR;
@@ -345,7 +345,7 @@ static void yy_fatal_error (yyconst char msg[] ,yyscan_t yyscanner );
  */
 #define YY_DO_BEFORE_ACTION \
 	yyg->yytext_ptr = yy_bp; \
-	yyleng = (yy_size_t) (yy_cp - yy_bp); \
+	yyleng = (size_t) (yy_cp - yy_bp); \
 	yyg->yy_hold_char = *yy_cp; \
 	*yy_cp = '\0'; \
 	yyg->yy_c_buf_p = yy_cp;
@@ -746,6 +746,10 @@ int glcpp_get_lineno (yyscan_t yyscanner );
 
 void glcpp_set_lineno (int line_number ,yyscan_t yyscanner );
 
+int glcpp_get_column  (yyscan_t yyscanner );
+
+void glcpp_set_column (int column_no ,yyscan_t yyscanner );
+
 YYSTYPE * glcpp_get_lval (yyscan_t yyscanner );
 
 void glcpp_set_lval (YYSTYPE * yylval_param ,yyscan_t yyscanner );
@@ -802,7 +806,7 @@ static int input (yyscan_t yyscanner );
 /* This used to be an fputs(), but since the string might contain NUL's,
  * we now use fwrite().
  */
-#define ECHO fwrite( yytext, yyleng, 1, yyout )
+#define ECHO do { if (fwrite( yytext, yyleng, 1, yyout )) {} } while (0)
 #endif
 
 /* Gets input and stuffs it into "buf".  number of characters read, or YY_NULL,
@@ -813,7 +817,7 @@ static int input (yyscan_t yyscanner );
 	if ( YY_CURRENT_BUFFER_LVALUE->yy_is_interactive ) \
 		{ \
 		int c = '*'; \
-		yy_size_t n; \
+		size_t n; \
 		for ( n = 0; n < max_size && \
 			     (c = getc( yyin )) != EOF && c != '\n'; ++n ) \
 			buf[n] = (char) c; \
@@ -916,7 +920,7 @@ YY_DECL
 	}
 
 	/* Single-line comments */
-#line 920 "src/glsl/glcpp/glcpp-lex.c"
+#line 924 "src/glsl/glcpp/glcpp-lex.c"
 
     yylval = yylval_param;
 
@@ -991,7 +995,6 @@ yy_match:
 yy_find_action:
 		yy_current_state = *--yyg->yy_state_ptr;
 		yyg->yy_lp = yy_accept[yy_current_state];
-goto find_rule; /* Shut up GCC warning -Wall */
 find_rule: /* we branch to this label when backing up */
 		for ( ; ; ) /* until we find what rule we matched */
 			{
@@ -1373,7 +1376,7 @@ YY_RULE_SETUP
 #line 305 "src/glsl/glcpp/glcpp-lex.l"
 ECHO;
 	YY_BREAK
-#line 1377 "src/glsl/glcpp/glcpp-lex.c"
+#line 1380 "src/glsl/glcpp/glcpp-lex.c"
 			case YY_STATE_EOF(DONE):
 			case YY_STATE_EOF(COMMENT):
 			case YY_STATE_EOF(UNREACHABLE):
@@ -1672,6 +1675,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 	if ( ! yy_is_jam )
 		*yyg->yy_state_ptr++ = yy_current_state;
 
+	(void)yyg;
 	return yy_is_jam ? 0 : yy_current_state;
 }
 
@@ -1762,7 +1766,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 				case EOB_ACT_END_OF_FILE:
 					{
 					if ( glcpp_wrap(yyscanner ) )
-						return 0;
+						return EOF;
 
 					if ( ! yyg->yy_did_buffer_switch_on_eof )
 						YY_NEW_FILE;
@@ -2113,8 +2117,8 @@ YY_BUFFER_STATE glcpp__scan_string (yyconst char * yystr , yyscan_t yyscanner)
 
 /** Setup the input buffer state to scan the given bytes. The next call to glcpp_lex() will
  * scan from a @e copy of @a bytes.
- * @param bytes the byte buffer to scan
- * @param len the number of bytes in the buffer pointed to by @a bytes.
+ * @param yybytes the byte buffer to scan
+ * @param _yybytes_len the number of bytes in the buffer pointed to by @a bytes.
  * @param yyscanner The scanner object.
  * @return the newly allocated buffer state object.
  */
@@ -2122,7 +2126,8 @@ YY_BUFFER_STATE glcpp__scan_bytes  (yyconst char * yybytes, yy_size_t  _yybytes_
 {
 	YY_BUFFER_STATE b;
 	char *buf;
-	yy_size_t n, i;
+	yy_size_t n;
+	int i;
     
 	/* Get memory for full buffer, including space for trailing EOB's. */
 	n = _yybytes_len + 2;
@@ -2308,7 +2313,7 @@ void glcpp_set_lineno (int  line_number , yyscan_t yyscanner)
 
         /* lineno is only valid if an input buffer exists. */
         if (! YY_CURRENT_BUFFER )
-           yy_fatal_error( "glcpp_set_lineno called with no buffer" , yyscanner); 
+           YY_FATAL_ERROR( "glcpp_set_lineno called with no buffer" );
     
     yylineno = line_number;
 }
@@ -2323,7 +2328,7 @@ void glcpp_set_column (int  column_no , yyscan_t yyscanner)
 
         /* column is only valid if an input buffer exists. */
         if (! YY_CURRENT_BUFFER )
-           yy_fatal_error( "glcpp_set_column called with no buffer" , yyscanner); 
+           YY_FATAL_ERROR( "glcpp_set_column called with no buffer" );
     
     yycolumn = column_no;
 }
