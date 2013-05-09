@@ -53,6 +53,7 @@ public:
    virtual ir_visitor_status visit(ir_variable *);
    virtual ir_visitor_status visit_enter(ir_assignment *);
    virtual ir_visitor_status visit_enter(ir_call *);
+   virtual ir_visitor_status visit_enter(ir_function_signature *);
 
    exec_list list;
 };
@@ -137,8 +138,8 @@ ir_constant_variable_visitor::visit_enter(ir_call *ir)
       ir_rvalue *param_rval = (ir_rvalue *)iter.get();
       ir_variable *param = (ir_variable *)sig_iter.get();
 
-      if (param->mode == ir_var_out ||
-	  param->mode == ir_var_inout) {
+      if (param->mode == ir_var_function_out ||
+	  param->mode == ir_var_function_inout) {
 	 ir_variable *var = param_rval->variable_referenced();
 	 struct assignment_entry *entry;
 
@@ -161,6 +162,23 @@ ir_constant_variable_visitor::visit_enter(ir_call *ir)
 
    return visit_continue;
 }
+
+ir_visitor_status
+ir_constant_variable_visitor::visit_enter(ir_function_signature *ir)
+{
+   /* Mark any in parameters as assigned to */
+   foreach_iter(exec_list_iterator, iter, ir->parameters) {
+      ir_variable *var = (ir_variable *)iter.get();
+      if (var->mode == ir_var_function_in || var->mode == ir_var_const_in || var->mode == ir_var_function_inout) {
+         struct assignment_entry *entry;
+         entry = get_assignment_entry(var, &this->list);
+         entry->assignment_count++;
+      }
+   }
+   visit_list_elements(this, &ir->body);
+   return visit_continue_with_parent;
+}
+
 
 /**
  * Does a copy propagation pass on the code present in the instruction stream.

@@ -36,6 +36,7 @@ void glcpp_set_column (int  column_no , yyscan_t yyscanner);
 
 #ifdef _MSC_VER
 #define YY_NO_UNISTD_H
+#pragma warning(disable: 4267) // warning C4267: '=' : conversion from 'size_t' to 'int', possible loss of data
 #endif
 
 #define YY_NO_INPUT
@@ -67,7 +68,7 @@ void glcpp_set_column (int  column_no , yyscan_t yyscanner);
 %option stack
 %option never-interactive
 
-%x DONE COMMENT UNREACHABLE SKIP
+%x DONE COMMENT UNREACHABLE SKIP DEFINE
 
 SPACE		[[:space:]]
 NONSPACE	[^[:space:]]
@@ -120,7 +121,7 @@ HEXADECIMAL_INTEGER	0[xX][0-9a-fA-F]+[uU]?
 		return SPACE;
 }
 
-{HASH}version {
+{HASH}version{HSPACE}+ {
 	yylval->str = ralloc_strdup (yyextra, yytext);
 	yyextra->space_tokens = 0;
 	return HASH_VERSION;
@@ -135,7 +136,7 @@ HEXADECIMAL_INTEGER	0[xX][0-9a-fA-F]+[uU]?
 	return OTHER;
 }
 
-{HASH}line {
+{HASH}line{HSPACE}+ {
 	return HASH_LINE;
 }
 
@@ -158,7 +159,7 @@ HEXADECIMAL_INTEGER	0[xX][0-9a-fA-F]+[uU]?
 	return HASH_IF;
 }
 
-{HASH}elif {
+{HASH}elif/[^_a-zA-Z0-9] {
 	yyextra->lexing_if = 1;
 	yyextra->space_tokens = 0;
 	return HASH_ELIF;
@@ -184,14 +185,22 @@ HEXADECIMAL_INTEGER	0[xX][0-9a-fA-F]+[uU]?
 	glcpp_error(yylloc, yyextra, "#error%s", p);
 }
 
-{HASH}define{HSPACE}+/{IDENTIFIER}"(" {
+{HASH}define{HSPACE}+ {
 	yyextra->space_tokens = 0;
-	return HASH_DEFINE_FUNC;
+	yy_push_state(DEFINE, yyscanner);
+	return HASH_DEFINE;
 }
 
-{HASH}define {
-	yyextra->space_tokens = 0;
-	return HASH_DEFINE_OBJ;
+<DEFINE>{IDENTIFIER}/"(" {
+	yy_pop_state(yyscanner);
+	yylval->str = ralloc_strdup (yyextra, yytext);
+	return FUNC_IDENTIFIER;
+}
+
+<DEFINE>{IDENTIFIER} {
+	yy_pop_state(yyscanner);
+	yylval->str = ralloc_strdup (yyextra, yytext);
+	return OBJ_IDENTIFIER;
 }
 
 {HASH}undef {
@@ -252,6 +261,8 @@ HEXADECIMAL_INTEGER	0[xX][0-9a-fA-F]+[uU]?
 }
 
 "##" {
+	if (parser->is_gles)
+		glcpp_error(yylloc, yyextra, "Token pasting (##) is illegal in GLES");
 	return PASTE;
 }
 

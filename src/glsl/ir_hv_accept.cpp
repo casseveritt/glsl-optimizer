@@ -201,6 +201,7 @@ ir_texture::accept(ir_hierarchical_visitor *v)
 
    switch (this->op) {
    case ir_tex:
+   case ir_lod:
       break;
    case ir_txb:
       s = this->lod_info.bias->accept(v);
@@ -213,6 +214,11 @@ ir_texture::accept(ir_hierarchical_visitor *v)
       s = this->lod_info.lod->accept(v);
       if (s != visit_continue)
 	 return (s == visit_continue_with_parent) ? visit_continue : s;
+      break;
+   case ir_txf_ms:
+      s = this->lod_info.sample_index->accept(v);
+      if (s != visit_continue)
+         return (s == visit_continue_with_parent) ? visit_continue : s;
       break;
    case ir_txd:
       s = this->lod_info.grad.dPdx->accept(v);
@@ -400,6 +406,12 @@ ir_if::accept(ir_hierarchical_visitor *v)
 
 ir_visitor_status
 ir_precision_statement::accept(ir_hierarchical_visitor *v)
+{
+   return v->visit(this);
+}
+
+ir_visitor_status
+ir_typedecl_statement::accept(ir_hierarchical_visitor *v)
 {
    return v->visit(this);
 }

@@ -41,14 +41,6 @@ _CRTIMP int _vscprintf(const char *format, va_list argptr);
 
 #include "ralloc.h"
 
-#ifdef __GNUC__
-#define likely(x)       __builtin_expect(!!(x),1)
-#define unlikely(x)     __builtin_expect(!!(x),0)
-#else
-#define likely(x)       !!(x)
-#define unlikely(x)     !!(x)
-#endif
-
 #ifndef va_copy
 #ifdef __va_copy
 #define va_copy(dest, src) __va_copy((dest), (src))
@@ -177,7 +169,7 @@ reralloc_size(const void *ctx, void *ptr, size_t size)
 }
 
 void *
-ralloc_array_size(const void *ctx, size_t size, unsigned count)
+ralloc_array_size(const void *ctx, size_t size, size_t count)
 {
    if (count > SIZE_MAX/size)
       return NULL;
@@ -186,7 +178,7 @@ ralloc_array_size(const void *ctx, size_t size, unsigned count)
 }
 
 void *
-rzalloc_array_size(const void *ctx, size_t size, unsigned count)
+rzalloc_array_size(const void *ctx, size_t size, size_t count)
 {
    if (count > SIZE_MAX/size)
       return NULL;
@@ -195,7 +187,7 @@ rzalloc_array_size(const void *ctx, size_t size, unsigned count)
 }
 
 void *
-reralloc_array_size(const void *ctx, void *ptr, size_t size, unsigned count)
+reralloc_array_size(const void *ctx, void *ptr, size_t size, size_t count)
 {
    if (count > SIZE_MAX/size)
       return NULL;

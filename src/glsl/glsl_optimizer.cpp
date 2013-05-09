@@ -31,6 +31,7 @@ initialize_mesa_context(struct gl_context *ctx, gl_api api)
    {
 	   ctx->Extensions.OES_standard_derivatives = GL_TRUE;
 	   ctx->Extensions.EXT_shadow_samplers = GL_TRUE;
+	   ctx->Extensions.EXT_frag_depth = GL_TRUE;
    }
 
    ctx->Const.GLSLVersion = 140;
@@ -60,7 +61,7 @@ initialize_mesa_context(struct gl_context *ctx, gl_api api)
 struct glslopt_ctx {
 	glslopt_ctx (bool openglES) {
 		mem_ctx = ralloc_context (NULL);
-		initialize_mesa_context (&mesa_ctx, openglES ? API_OPENGLES2 : API_OPENGL);
+		initialize_mesa_context (&mesa_ctx, openglES ? API_OPENGLES2 : API_OPENGL_COMPAT);
 	}
 	~glslopt_ctx() {
 		ralloc_free (mem_ctx);
@@ -120,6 +121,8 @@ struct glslopt_shader
 		for (unsigned i = 0; i < MESA_SHADER_TYPES; i++)
 			ralloc_free(whole_program->_LinkedShaders[i]);
 		ralloc_free(whole_program);
+		ralloc_free(rawOutput);
+		ralloc_free(optimizedOutput);
 	}
 	
 	struct gl_shader_program* whole_program;
@@ -133,11 +136,11 @@ struct glslopt_shader
 
 static inline void debug_print_ir (const char* name, exec_list* ir, _mesa_glsl_parse_state* state, void* memctx)
 {
-	#if 1
+	#if 0
 	printf("**** %s:\n", name);
 	//_mesa_print_ir (ir, state);
 	char* foobar = _mesa_print_ir_glsl(ir, state, ralloc_strdup(memctx, ""), kPrintGlslFragment);
-	printf( "%s", foobar);
+	printf("%s\n", foobar);
 	validate_ir_tree(ir);
 	#endif
 }
@@ -170,7 +173,7 @@ static void propagate_precision_expr(ir_instruction *ir, void *data)
 		return;
 	
 	glsl_precision prec_params_max = glsl_precision_undefined;
-	for (int i = 0; i < expr->get_num_operands(); ++i)
+	for (int i = 0; i < (int)expr->get_num_operands(); ++i)
 	{
 		ir_rvalue* op = expr->operands[i];
 		if (op && op->get_precision() != glsl_precision_undefined)
@@ -257,45 +260,45 @@ static bool propagate_precision(exec_list* list)
 }
 
 
-static void do_optimization_passes(exec_list* ir, bool linked, _mesa_glsl_parse_state* state, glslopt_ctx* ctx)
+static void do_optimization_passes(exec_list* ir, bool linked, _mesa_glsl_parse_state* state, void* mem_ctx)
 {
 	bool progress;
 	do {
 		progress = false;
 		bool progress2;
-		debug_print_ir ("Initial", ir, state, ctx->mem_ctx);
+		debug_print_ir ("Initial", ir, state, mem_ctx);
 		if (linked) {
-			progress2 = do_function_inlining(ir); progress |= progress2; if (progress2) debug_print_ir ("After inlining", ir, state, ctx->mem_ctx);
-			progress2 = do_dead_functions(ir); progress |= progress2; if (progress2) debug_print_ir ("After dead functions", ir, state, ctx->mem_ctx);
-			progress2 = do_structure_splitting(ir); progress |= progress2; if (progress2) debug_print_ir ("After struct splitting", ir, state, ctx->mem_ctx);
+			progress2 = do_function_inlining(ir); progress |= progress2; if (progress2) debug_print_ir ("After inlining", ir, state, mem_ctx);
+			progress2 = do_dead_functions(ir); progress |= progress2; if (progress2) debug_print_ir ("After dead functions", ir, state, mem_ctx);
+			progress2 = do_structure_splitting(ir); progress |= progress2; if (progress2) debug_print_ir ("After struct splitting", ir, state, mem_ctx);
 		}
-		progress2 = do_if_simplification(ir); progress |= progress2; if (progress2) debug_print_ir ("After if simpl", ir, state, ctx->mem_ctx);
-		progress2 = propagate_precision (ir); progress |= progress2; if (progress2) debug_print_ir ("After prec propagation", ir, state, ctx->mem_ctx);
-		progress2 = do_copy_propagation(ir); progress |= progress2; if (progress2) debug_print_ir ("After copy propagation", ir, state, ctx->mem_ctx);
-		progress2 = do_copy_propagation_elements(ir); progress |= progress2; if (progress2) debug_print_ir ("After copy propagation elems", ir, state, ctx->mem_ctx);
+		progress2 = do_if_simplification(ir); progress |= progress2; if (progress2) debug_print_ir ("After if simpl", ir, state, mem_ctx);
+		progress2 = opt_flatten_nested_if_blocks(ir); progress |= progress2; if (progress2) debug_print_ir ("After if flatten", ir, state, mem_ctx);
+		progress2 = propagate_precision (ir); progress |= progress2; if (progress2) debug_print_ir ("After prec propagation", ir, state, mem_ctx);
+		progress2 = do_copy_propagation(ir); progress |= progress2; if (progress2) debug_print_ir ("After copy propagation", ir, state, mem_ctx);
+		progress2 = do_copy_propagation_elements(ir); progress |= progress2; if (progress2) debug_print_ir ("After copy propagation elems", ir, state, mem_ctx);
 		if (linked) {
-			progress2 = do_dead_code(ir,false); progress |= progress2; if (progress2) debug_print_ir ("After dead code", ir, state, ctx->mem_ctx);
+			progress2 = do_dead_code(ir,false); progress |= progress2; if (progress2) debug_print_ir ("After dead code", ir, state, mem_ctx);
 		} else {
-			progress2 = do_dead_code_unlinked(ir); progress |= progress2; if (progress2) debug_print_ir ("After dead code unlinked", ir, state, ctx->mem_ctx);
+			progress2 = do_dead_code_unlinked(ir); progress |= progress2; if (progress2) debug_print_ir ("After dead code unlinked", ir, state, mem_ctx);
 		}
-		progress2 = do_dead_code_local(ir); progress |= progress2; if (progress2) debug_print_ir ("After dead code local", ir, state, ctx->mem_ctx);
-		progress2 = propagate_precision (ir); progress |= progress2; if (progress2) debug_print_ir ("After prec propagation", ir, state, ctx->mem_ctx);
-		progress2 = do_tree_grafting(ir); progress |= progress2; if (progress2) debug_print_ir ("After tree grafting", ir, state, ctx->mem_ctx);
-		progress2 = do_constant_propagation(ir); progress |= progress2; if (progress2) debug_print_ir ("After const propagation", ir, state, ctx->mem_ctx);
+		progress2 = do_dead_code_local(ir); progress |= progress2; if (progress2) debug_print_ir ("After dead code local", ir, state, mem_ctx);
+		progress2 = propagate_precision (ir); progress |= progress2; if (progress2) debug_print_ir ("After prec propagation", ir, state, mem_ctx);
+		progress2 = do_tree_grafting(ir); progress |= progress2; if (progress2) debug_print_ir ("After tree grafting", ir, state, mem_ctx);
+		progress2 = do_constant_propagation(ir); progress |= progress2; if (progress2) debug_print_ir ("After const propagation", ir, state, mem_ctx);
 		if (linked) {
-			progress2 = do_constant_variable(ir); progress |= progress2; if (progress2) debug_print_ir ("After const variable", ir, state, ctx->mem_ctx);
+			progress2 = do_constant_variable(ir); progress |= progress2; if (progress2) debug_print_ir ("After const variable", ir, state, mem_ctx);
 		} else {
-			progress2 = do_constant_variable_unlinked(ir); progress |= progress2; if (progress2) debug_print_ir ("After const variable unlinked", ir, state, ctx->mem_ctx);
+			progress2 = do_constant_variable_unlinked(ir); progress |= progress2; if (progress2) debug_print_ir ("After const variable unlinked", ir, state, mem_ctx);
 		}
-		progress2 = do_constant_folding(ir); progress |= progress2; if (progress2) debug_print_ir ("After const folding", ir, state, ctx->mem_ctx);
-		progress2 = do_algebraic(ir); progress |= progress2; if (progress2) debug_print_ir ("After algebraic", ir, state, ctx->mem_ctx);
-		progress2 = do_lower_jumps(ir); progress |= progress2; if (progress2) debug_print_ir ("After lower jumps", ir, state, ctx->mem_ctx);
-		progress2 = do_vec_index_to_swizzle(ir); progress |= progress2; if (progress2) debug_print_ir ("After vec index to swizzle", ir, state, ctx->mem_ctx);
-		//progress2 = do_vec_index_to_cond_assign(ir); progress |= progress2; if (progress2) debug_print_ir ("After vec index to cond assign", ir, state, ctx->mem_ctx);
-		progress2 = do_swizzle_swizzle(ir); progress |= progress2; if (progress2) debug_print_ir ("After swizzle swizzle", ir, state, ctx->mem_ctx);
-		progress2 = do_noop_swizzle(ir); progress |= progress2; if (progress2) debug_print_ir ("After noop swizzle", ir, state, ctx->mem_ctx);
-		progress2 = optimize_split_arrays(ir, linked); progress |= progress2; if (progress2) debug_print_ir ("After split arrays", ir, state, ctx->mem_ctx);
-		progress2 = optimize_redundant_jumps(ir); progress |= progress2; if (progress2) debug_print_ir ("After redundant jumps", ir, state, ctx->mem_ctx);
+		progress2 = do_constant_folding(ir); progress |= progress2; if (progress2) debug_print_ir ("After const folding", ir, state, mem_ctx);
+		progress2 = do_algebraic(ir); progress |= progress2; if (progress2) debug_print_ir ("After algebraic", ir, state, mem_ctx);
+		progress2 = do_lower_jumps(ir); progress |= progress2; if (progress2) debug_print_ir ("After lower jumps", ir, state, mem_ctx);
+		progress2 = do_vec_index_to_swizzle(ir); progress |= progress2; if (progress2) debug_print_ir ("After vec index to swizzle", ir, state, mem_ctx);
+		progress2 = do_swizzle_swizzle(ir); progress |= progress2; if (progress2) debug_print_ir ("After swizzle swizzle", ir, state, mem_ctx);
+		progress2 = do_noop_swizzle(ir); progress |= progress2; if (progress2) debug_print_ir ("After noop swizzle", ir, state, mem_ctx);
+		progress2 = optimize_split_arrays(ir, linked); progress |= progress2; if (progress2) debug_print_ir ("After split arrays", ir, state, mem_ctx);
+		progress2 = optimize_redundant_jumps(ir); progress |= progress2; if (progress2) debug_print_ir ("After redundant jumps", ir, state, mem_ctx);
 		
 		// do loop stuff only when linked; otherwise causes duplicate loop induction variable
 		// problems (ast-in.txt test)
@@ -303,8 +306,8 @@ static void do_optimization_passes(exec_list* ir, bool linked, _mesa_glsl_parse_
 		{
 			loop_state *ls = analyze_loop_variables(ir);
 			if (ls->loop_found) {
-				progress2 = set_loop_controls(ir, ls); progress |= progress2; if (progress2) debug_print_ir ("After set loop", ir, state, ctx->mem_ctx);
-				progress2 = unroll_loops(ir, ls, 8); progress |= progress2; if (progress2) debug_print_ir ("After unroll", ir, state, ctx->mem_ctx);
+				progress2 = set_loop_controls(ir, ls); progress |= progress2; if (progress2) debug_print_ir ("After set loop", ir, state, mem_ctx);
+				progress2 = unroll_loops(ir, ls, 8); progress |= progress2; if (progress2) debug_print_ir ("After unroll", ir, state, mem_ctx);
 			}
 			delete ls;
 		}
@@ -316,24 +319,24 @@ glslopt_shader* glslopt_optimize (glslopt_ctx* ctx, glslopt_shader_type type, co
 {
 	glslopt_shader* shader = new (ctx->mem_ctx) glslopt_shader ();
 
-	PrintGlslMode printMode;
+	PrintGlslMode printMode = kPrintGlslVertex;
 	switch (type) {
 	case kGlslOptShaderVertex: shader->shader->Type = GL_VERTEX_SHADER; printMode = kPrintGlslVertex; break;
 	case kGlslOptShaderFragment: shader->shader->Type = GL_FRAGMENT_SHADER; printMode = kPrintGlslFragment; break;
 	}
 	if (!shader->shader->Type)
 	{
-		shader->infoLog = ralloc_asprintf (ctx->mem_ctx, "Unknown shader type %d", (int)type);
+		shader->infoLog = ralloc_asprintf (shader, "Unknown shader type %d", (int)type);
 		shader->status = false;
 		return shader;
 	}
 	
-	_mesa_glsl_parse_state* state = new (ctx->mem_ctx) _mesa_glsl_parse_state (&ctx->mesa_ctx, shader->shader->Type, ctx->mem_ctx);
+	_mesa_glsl_parse_state* state = new (shader) _mesa_glsl_parse_state (&ctx->mesa_ctx, shader->shader->Type, shader);
 	state->error = 0;
 
 	if (!(options & kGlslOptionSkipPreprocessor))
 	{
-		state->error = glcpp_preprocess (state, &shaderSource, &state->info_log, state->extensions, ctx->mesa_ctx.API);
+		state->error = !!glcpp_preprocess (state, &shaderSource, &state->info_log, state->extensions, &ctx->mesa_ctx);
 		if (state->error)
 		{
 			shader->status = !state->error;
@@ -346,7 +349,7 @@ glslopt_shader* glslopt_optimize (glslopt_ctx* ctx, glslopt_shader_type type, co
 	_mesa_glsl_parse (state);
 	_mesa_glsl_lexer_dtor (state);
 
-	exec_list* ir = new (ctx->mem_ctx) exec_list();
+	exec_list* ir = new (shader) exec_list();
 	shader->shader->ir = ir;
 
 	if (!state->error && !state->translation_unit.is_empty())
@@ -355,7 +358,7 @@ glslopt_shader* glslopt_optimize (glslopt_ctx* ctx, glslopt_shader_type type, co
 	// Un-optimized output
 	if (!state->error) {
 		validate_ir_tree(ir);
-		shader->rawOutput = _mesa_print_ir_glsl(ir, state, ralloc_strdup(ctx->mem_ctx, ""), printMode);
+		shader->rawOutput = _mesa_print_ir_glsl(ir, state, ralloc_strdup(shader, ""), printMode);
 	}
 	
 	// Link built-in functions
@@ -363,13 +366,15 @@ glslopt_shader* glslopt_optimize (glslopt_ctx* ctx, glslopt_shader_type type, co
 	memcpy(shader->shader->builtins_to_link, state->builtins_to_link, sizeof(shader->shader->builtins_to_link[0]) * state->num_builtins_to_link);
 	shader->shader->num_builtins_to_link = state->num_builtins_to_link;
 	
+	struct gl_shader* linked_shader = 0;
+
 	if (!state->error && !ir->is_empty())
 	{
-		struct gl_shader* linked_shader = link_intrastage_shaders(ctx->mem_ctx,
-																  &ctx->mesa_ctx,
-																  shader->whole_program,
-																  shader->whole_program->Shaders,
-																  shader->whole_program->NumShaders);
+		linked_shader = link_intrastage_shaders(shader,
+												&ctx->mesa_ctx,
+												shader->whole_program,
+												shader->whole_program->Shaders,
+												shader->whole_program->NumShaders);
 		if (!linked_shader)
 		{
 			shader->status = false;
@@ -378,21 +383,21 @@ glslopt_shader* glslopt_optimize (glslopt_ctx* ctx, glslopt_shader_type type, co
 		}
 		ir = linked_shader->ir;
 		
-		debug_print_ir ("==== After link ====", ir, state, ctx->mem_ctx);
+		debug_print_ir ("==== After link ====", ir, state, shader);
 	}
 	
 	// Do optimization post-link
-	if ( false && !state->error && !ir->is_empty())
+	if (!state->error && !ir->is_empty())
 	{		
 		const bool linked = !(options & kGlslOptionNotFullShader);
-		do_optimization_passes(ir, linked, state, ctx);
+		do_optimization_passes(ir, linked, state, shader);
 		validate_ir_tree(ir);
 	}	
 	
 	// Final optimized output
 	if (!state->error)
 	{
-		shader->optimizedOutput = _mesa_print_ir_glsl(ir, state, ralloc_strdup(ctx->mem_ctx, ""), printMode);
+		shader->optimizedOutput = _mesa_print_ir_glsl(ir, state, ralloc_strdup(shader, ""), printMode);
 	}
 
 	shader->status = !state->error;
@@ -400,6 +405,9 @@ glslopt_shader* glslopt_optimize (glslopt_ctx* ctx, glslopt_shader_type type, co
 
 	ralloc_free (ir);
 	ralloc_free (state);
+
+	if (linked_shader)
+		ralloc_free(linked_shader);
 
 	return shader;
 }

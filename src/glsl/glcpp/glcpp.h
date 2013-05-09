@@ -27,6 +27,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "main/mtypes.h"
+
 #include "../ralloc.h"
 
 #include "program/hash_table.h"
@@ -50,6 +52,8 @@ typedef struct token_list token_list_t;
 
 typedef union YYSTYPE
 {
+	// Could be int, but results in some bugs with parsing of #version directives
+	// in Apple LLVM Compiler 4.2 when building for 32 bit.
 	intmax_t ival;
 	char *str;
 	string_list_t *string_list;
@@ -182,6 +186,7 @@ struct glcpp_parser {
 	int new_line_number;
 	bool has_new_source_number;
 	int new_source_number;
+	bool is_gles;
 };
 
 struct gl_extensions;
@@ -197,7 +202,7 @@ glcpp_parser_destroy (glcpp_parser_t *parser);
 
 int
 glcpp_preprocess(void *ralloc_ctx, const char **shader, char **info_log,
-	   const struct gl_extensions *extensions, int api);
+	   const struct gl_extensions *extensions, struct gl_context *g_ctx);
 
 /* Functions for writing to the info log */
 

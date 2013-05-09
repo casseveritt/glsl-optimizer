@@ -122,18 +122,18 @@ ir_mat_op_to_vec_visitor::do_mul_mat_mat(ir_dereference *result,
 					 ir_dereference *a,
 					 ir_dereference *b)
 {
-   int b_col, i;
+   unsigned b_col, i;
    ir_assignment *assign;
    ir_expression *expr;
 
-   for (b_col = 0; b_col < b->type->matrix_columns; b_col++) {
+   for (b_col = 0; b_col < (int)b->type->matrix_columns; b_col++) {
       /* first column */
       expr = new(mem_ctx) ir_expression(ir_binop_mul,
 					get_column(a, 0),
 					get_element(b, b_col, 0));
 
       /* following columns */
-      for (i = 1; i < a->type->matrix_columns; i++) {
+      for (i = 1; i < (int)a->type->matrix_columns; i++) {
 	 ir_expression *mul_expr;
 
 	 mul_expr = new(mem_ctx) ir_expression(ir_binop_mul,
@@ -154,7 +154,7 @@ ir_mat_op_to_vec_visitor::do_mul_mat_vec(ir_dereference *result,
 					 ir_dereference *a,
 					 ir_dereference *b)
 {
-   int i;
+   unsigned i;
    ir_assignment *assign;
    ir_expression *expr;
 
@@ -164,7 +164,7 @@ ir_mat_op_to_vec_visitor::do_mul_mat_vec(ir_dereference *result,
 				     get_element(b, 0, 0));
 
    /* following columns */
-   for (i = 1; i < a->type->matrix_columns; i++) {
+   for (i = 1; i < (int)a->type->matrix_columns; i++) {
       ir_expression *mul_expr;
 
       mul_expr = new(mem_ctx) ir_expression(ir_binop_mul,
@@ -183,9 +183,9 @@ ir_mat_op_to_vec_visitor::do_mul_vec_mat(ir_dereference *result,
 					 ir_dereference *a,
 					 ir_dereference *b)
 {
-   int i;
+   unsigned i;
 
-   for (i = 0; i < b->type->matrix_columns; i++) {
+   for (i = 0; i < (int)b->type->matrix_columns; i++) {
       ir_rvalue *column_result;
       ir_expression *column_expr;
       ir_assignment *column_assign;
@@ -208,9 +208,9 @@ ir_mat_op_to_vec_visitor::do_mul_mat_scalar(ir_dereference *result,
 					    ir_dereference *a,
 					    ir_dereference *b)
 {
-   int i;
+   unsigned i;
 
-   for (i = 0; i < a->type->matrix_columns; i++) {
+   for (i = 0; i < (int)a->type->matrix_columns; i++) {
       ir_expression *column_expr;
       ir_assignment *column_assign;
 

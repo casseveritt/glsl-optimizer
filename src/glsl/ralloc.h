@@ -54,6 +54,7 @@ extern "C" {
 #include <stddef.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include "main/compiler.h"
 
 /**
  * \def ralloc(ctx, type)
@@ -184,7 +185,7 @@ void *reralloc_size(const void *ctx, void *ptr, size_t size);
  * More than a convenience function, this also checks for integer overflow when
  * multiplying \p size and \p count.  This is necessary for security.
  */
-void *ralloc_array_size(const void *ctx, size_t size, unsigned count);
+void *ralloc_array_size(const void *ctx, size_t size, size_t count);
 
 /**
  * Allocate a zero-initialized array chained off the given context.
@@ -194,7 +195,7 @@ void *ralloc_array_size(const void *ctx, size_t size, unsigned count);
  * More than a convenience function, this also checks for integer overflow when
  * multiplying \p size and \p count.  This is necessary for security.
  */
-void *rzalloc_array_size(const void *ctx, size_t size, unsigned count);
+void *rzalloc_array_size(const void *ctx, size_t size, size_t count);
 
 /**
  * Resize a ralloc-managed array, preserving data.
@@ -215,7 +216,7 @@ void *rzalloc_array_size(const void *ctx, size_t size, unsigned count);
  * \return True unless allocation failed.
  */
 void *reralloc_array_size(const void *ctx, void *ptr, size_t size,
-			  unsigned count);
+			  size_t count);
 /// @}
 
 /**
@@ -301,7 +302,7 @@ bool ralloc_strncat(char **dest, const char *str, size_t n);
  *
  * \return The newly allocated string.
  */
-char *ralloc_asprintf (const void *ctx, const char *fmt, ...);
+char *ralloc_asprintf (const void *ctx, const char *fmt, ...) PRINTFLIKE(2, 3);
 
 /**
  * Print to a string, given a va_list.
@@ -334,7 +335,8 @@ char *ralloc_vasprintf(const void *ctx, const char *fmt, va_list args);
  * \return True unless allocation failed.
  */
 bool ralloc_asprintf_rewrite_tail(char **str, size_t *start,
-				  const char *fmt, ...);
+				  const char *fmt, ...)
+				  PRINTFLIKE(3, 4);
 
 /**
  * Rewrite the tail of an existing string, starting at a given index.
@@ -376,7 +378,8 @@ bool ralloc_vasprintf_rewrite_tail(char **str, size_t *start, const char *fmt,
  *
  * \return True unless allocation failed.
  */
-bool ralloc_asprintf_append (char **str, const char *fmt, ...);
+bool ralloc_asprintf_append (char **str, const char *fmt, ...)
+			     PRINTFLIKE(2, 3);
 
 /**
  * Append formatted text to the supplied string, given a va_list.
