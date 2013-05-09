@@ -43,36 +43,37 @@
      DEFINED = 259,
      ELIF_EXPANDED = 260,
      HASH = 261,
-     HASH_DEFINE_FUNC = 262,
-     HASH_DEFINE_OBJ = 263,
-     HASH_ELIF = 264,
-     HASH_ELSE = 265,
-     HASH_ENDIF = 266,
-     HASH_IF = 267,
-     HASH_IFDEF = 268,
-     HASH_IFNDEF = 269,
-     HASH_LINE = 270,
-     HASH_UNDEF = 271,
-     HASH_VERSION = 272,
-     IDENTIFIER = 273,
-     IF_EXPANDED = 274,
-     INTEGER = 275,
-     INTEGER_STRING = 276,
-     LINE_EXPANDED = 277,
-     NEWLINE = 278,
-     OTHER = 279,
-     PLACEHOLDER = 280,
-     SPACE = 281,
-     PASTE = 282,
-     OR = 283,
-     AND = 284,
-     NOT_EQUAL = 285,
-     EQUAL = 286,
-     GREATER_OR_EQUAL = 287,
-     LESS_OR_EQUAL = 288,
-     RIGHT_SHIFT = 289,
-     LEFT_SHIFT = 290,
-     UNARY = 291
+     HASH_DEFINE = 262,
+     FUNC_IDENTIFIER = 263,
+     OBJ_IDENTIFIER = 264,
+     HASH_ELIF = 265,
+     HASH_ELSE = 266,
+     HASH_ENDIF = 267,
+     HASH_IF = 268,
+     HASH_IFDEF = 269,
+     HASH_IFNDEF = 270,
+     HASH_LINE = 271,
+     HASH_UNDEF = 272,
+     HASH_VERSION = 273,
+     IDENTIFIER = 274,
+     IF_EXPANDED = 275,
+     INTEGER = 276,
+     INTEGER_STRING = 277,
+     LINE_EXPANDED = 278,
+     NEWLINE = 279,
+     OTHER = 280,
+     PLACEHOLDER = 281,
+     SPACE = 282,
+     PASTE = 283,
+     OR = 284,
+     AND = 285,
+     NOT_EQUAL = 286,
+     EQUAL = 287,
+     GREATER_OR_EQUAL = 288,
+     LESS_OR_EQUAL = 289,
+     RIGHT_SHIFT = 290,
+     LEFT_SHIFT = 291,
+     UNARY = 292
    };
 #endif
 /* Tokens.  */
@@ -80,36 +81,37 @@
 #define DEFINED 259
 #define ELIF_EXPANDED 260
 #define HASH 261
-#define HASH_DEFINE_FUNC 262
-#define HASH_DEFINE_OBJ 263
-#define HASH_ELIF 264
-#define HASH_ELSE 265
-#define HASH_ENDIF 266
-#define HASH_IF 267
-#define HASH_IFDEF 268
-#define HASH_IFNDEF 269
-#define HASH_LINE 270
-#define HASH_UNDEF 271
-#define HASH_VERSION 272
-#define IDENTIFIER 273
-#define IF_EXPANDED 274
-#define INTEGER 275
-#define INTEGER_STRING 276
-#define LINE_EXPANDED 277
-#define NEWLINE 278
-#define OTHER 279
-#define PLACEHOLDER 280
-#define SPACE 281
-#define PASTE 282
-#define OR 283
-#define AND 284
-#define NOT_EQUAL 285
-#define EQUAL 286
-#define GREATER_OR_EQUAL 287
-#define LESS_OR_EQUAL 288
-#define RIGHT_SHIFT 289
-#define LEFT_SHIFT 290
-#define UNARY 291
+#define HASH_DEFINE 262
+#define FUNC_IDENTIFIER 263
+#define OBJ_IDENTIFIER 264
+#define HASH_ELIF 265
+#define HASH_ELSE 266
+#define HASH_ENDIF 267
+#define HASH_IF 268
+#define HASH_IFDEF 269
+#define HASH_IFNDEF 270
+#define HASH_LINE 271
+#define HASH_UNDEF 272
+#define HASH_VERSION 273
+#define IDENTIFIER 274
+#define IF_EXPANDED 275
+#define INTEGER 276
+#define INTEGER_STRING 277
+#define LINE_EXPANDED 278
+#define NEWLINE 279
+#define OTHER 280
+#define PLACEHOLDER 281
+#define SPACE 282
+#define PASTE 283
+#define OR 284
+#define AND 285
+#define NOT_EQUAL 286
+#define EQUAL 287
+#define GREATER_OR_EQUAL 288
+#define LESS_OR_EQUAL 289
+#define RIGHT_SHIFT 290
+#define LEFT_SHIFT 291
+#define UNARY 292
 
 
 
