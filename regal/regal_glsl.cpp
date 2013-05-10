@@ -1,3 +1,4 @@
+#include "main/core.h"
 #include "regal_glsl.h"
 #include "ast.h"
 #include "glsl_parser_extras.h"
@@ -62,7 +63,7 @@ initialize_mesa_context(struct gl_context *ctx, gl_api api)
 struct regal_glsl_ctx {
 	regal_glsl_ctx () {
 		mem_ctx = ralloc_context (NULL);
-		initialize_mesa_context (&mesa_ctx, API_OPENGL);
+		initialize_mesa_context (&mesa_ctx, API_OPENGL_COMPAT);
 	}
 	~regal_glsl_ctx() {
 		ralloc_free (mem_ctx);
@@ -168,7 +169,8 @@ regal_glsl_shader* regal_glsl_parse (regal_glsl_ctx* ctx, regal_glsl_shader_type
   shader->state = state;
 	state->error = 0;
 
-  state->error = glcpp_preprocess (state, &shaderSource, &state->info_log, state->extensions, ctx->mesa_ctx.API);
+  state->error = !!glcpp_preprocess (state, &shaderSource, &state->info_log, state->extensions, &ctx->mesa_ctx);
+
   if (state->error)	{
     shader->status = !state->error;
     shader->infoLog = state->info_log;
@@ -251,7 +253,7 @@ public:
   add_alpha_test( RegalAlphaFunc raf ) : func( raf ), alphaRef( NULL ), fragColor( NULL ) {}
   
   virtual ir_visitor_status visit(ir_variable *var) {
-    if( fragColor == NULL && var->type == glsl_type::vec4_type && ( var->mode == ir_var_out || var->mode == ir_var_inout ) ) {
+    if( fragColor == NULL && var->type == glsl_type::vec4_type && ( var->mode == ir_var_shader_out ) ) {
       fragColor = var;
     }
     return visit_continue;
@@ -325,9 +327,9 @@ public:
     void * ctx = ralloc_parent( shader->shader->ir );
     
     // attribs
-    v = new(ctx) ir_variable( glsl_type::vec4_type, "rglColor", ir_var_in, glsl_precision_undefined );
+    v = new(ctx) ir_variable( glsl_type::vec4_type, "rglColor", ir_var_shader_in, glsl_precision_undefined );
     vars[ "gl_Color" ] = v;
-    v = new(ctx) ir_variable( glsl_type::vec3_type, "rglNormal", ir_var_in, glsl_precision_undefined );
+    v = new(ctx) ir_variable( glsl_type::vec3_type, "rglNormal", ir_var_shader_in, glsl_precision_undefined );
     vars[ "gl_Normal" ] = v;
 
     // uniforms
